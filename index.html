@@ -538,11 +538,18 @@ const DICAS = [
   "<strong>Semana 12 — Fechamento.</strong> Documente os resultados com honestidade. O próximo ciclo começa com esses dados.",
 ];
 
+// Metas acumuladas por semana — curva customizada
+const EXPECTED = {
+  m1: [0, 215, 230, 245, 260, 275, 320, 400, 520, 700, 950, 1400, 2000],
+  m2: [0,   0,   0,   0,   0,   0,   0, 150, 300, 500, 750, 1100, 1500],
+  m3: [0,   2,   5,  10,  17,  25,  45,  70, 100, 130, 160,  185,  200],
+};
+ 
 function expectedAt(s) {
   return {
-    m1: Math.round(200 + ((2000 - 200) / 12) * s),
-    m2: Math.round((1500 / 12) * s),
-    m3: Math.round((200 / 12) * s),
+    m1: EXPECTED.m1[s],
+    m2: EXPECTED.m2[s],
+    m3: EXPECTED.m3[s],
   };
 }
 
