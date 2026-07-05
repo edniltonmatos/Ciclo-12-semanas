@@ -396,6 +396,8 @@ const EXPECTED = {
 
 let DB = {};
 let LIVE = { m1: null, m3: null, updatedAt: null, available: false };
+let HIST_METRICS = {};
+const HIST_CACHE_KEY = 'gc-hist-metrics-v1';
 let revenueEntries = JSON.parse(localStorage.getItem('gc-revenue-entries') || '[]');
 let expanded = {};
 let trendPeriod = localStorage.getItem('gc-trend-period') || '14';
@@ -435,6 +437,28 @@ function metricsPeriod() {
   const end = new Date();
   const start = new Date(end.getTime() - WAU_PERIOD_DAYS * 86400000);
   return { inicio: start.toISOString(), fim: end.toISOString() };
+}
+function weekPeriodBounds(w) {
+  const startDay = weekStartDay(w);
+  const endDay = Math.min(weekEndDay(w), TODAY);
+  if (startDay > TODAY) return null;
+  return {
+    inicio: dateForDay(startDay).toISOString(),
+    fim: new Date(dateForDay(endDay).getTime() + 86400000).toISOString(),
+  };
+}
+function histCacheKey(w, bounds) {
+  return `w${w}:${bounds.inicio}:${bounds.fim}`;
+}
+function loadHistCache() {
+  try { return JSON.parse(sessionStorage.getItem(HIST_CACHE_KEY) || '{}'); } catch (_) { return {}; }
+}
+function saveHistCache(cache) {
+  try { sessionStorage.setItem(HIST_CACHE_KEY, JSON.stringify(cache)); } catch (_) {}
+}
+function historyMetricAtWeek(key, w) {
+  if (w > CURRENT_WEEK) return null;
+  return HIST_METRICS[w]?.[key] ?? null;
 }
 function tespConfigured() {
   return !TESP_SUPABASE_URL.includes('SEU-PROJETO') && !TESP_SUPABASE_KEY.includes('SUA-CHAVE');
@@ -563,13 +587,12 @@ async function dbSave(row) {
   if (!r.ok) throw new Error('save');
   return r.json();
 }
-async function fetchLiveMetrics() {
+async function fetchMetricsForPeriod(inicio, fim) {
   if (!tespConfigured()) return null;
-  const period = metricsPeriod();
   const r = await fetch(`${TESP_SUPABASE_URL}/rest/v1/rpc/${LIVE_METRICS_RPC}`, {
     method: 'POST',
     headers: tespHeaders,
-    body: JSON.stringify({ p_inicio: period.inicio, p_fim: period.fim }),
+    body: JSON.stringify({ p_inicio: inicio, p_fim: fim }),
   });
   if (!r.ok) return null;
   const data = await r.json();
@@ -579,6 +602,36 @@ async function fetchLiveMetrics() {
     m3: data.tempo_medio != null ? Number(data.tempo_medio) : null,
     updatedAt: data.updated_at || null,
   };
+}
+async function fetchLiveMetrics() {
+  const period = metricsPeriod();
+  return fetchMetricsForPeriod(period.inicio, period.fim);
+}
+async function syncHistoricalMetrics() {
+  if (!tespConfigured()) return false;
+  const cache = loadHistCache();
+  let cacheUpdated = false;
+  await Promise.all(Array.from({ length: CURRENT_WEEK }, (_, i) => {
+    const wi = i + 1;
+    const bounds = weekPeriodBounds(wi);
+    if (!bounds) return Promise.resolve();
+    const key = histCacheKey(wi, bounds);
+    const isComplete = wi < CURRENT_WEEK;
+    if (isComplete && cache[key]) {
+      HIST_METRICS[wi] = cache[key];
+      return Promise.resolve();
+    }
+    return fetchMetricsForPeriod(bounds.inicio, bounds.fim).then(metrics => {
+      if (!metrics) return;
+      HIST_METRICS[wi] = { m1: metrics.m1, m3: metrics.m3 };
+      if (isComplete) {
+        cache[key] = HIST_METRICS[wi];
+        cacheUpdated = true;
+      }
+    });
+  }));
+  if (cacheUpdated) saveHistCache(cache);
+  return Object.keys(HIST_METRICS).length > 0;
 }
 async function syncLiveMetrics() {
   try {
@@ -793,9 +846,9 @@ function renderHistory(data) {
       </div>
       <div class="week-body">
         <div class="week-values">
-          <div class="week-field"><label>Usuários (WAU)${wk.isCurrent && LIVE.available ? ' · TESP' : ''}</label><div class="display-val">${wk.m1Label}</div></div>
+          <div class="week-field"><label>Usuários (WAU)${wk.histTesp ? ' · TESP' : ''}</label><div class="display-val">${wk.m1Label}</div></div>
           <div class="week-field"><label>Receita acumulada (R$)</label><div class="display-val">${wk.m2Label}</div></div>
-          <div class="week-field"><label>Tempo médio (min)${wk.isCurrent && LIVE.available ? ' · TESP' : ''}</label><div class="display-val">${wk.m3Label}</div></div>
+          <div class="week-field"><label>Tempo médio (min)${wk.histTesp ? ' · TESP' : ''}</label><div class="display-val">${wk.m3Label}</div></div>
         </div>
       </div>
     </div>`;
@@ -887,21 +940,22 @@ function computeData() {
     let dotUsers = 'var(--border)', dotRevenue = 'var(--border)', dotTempo = 'var(--border)';
     if (status !== 'future') {
       const endDay = Math.min(weekEndDay(wi), TODAY);
-      const uAct = actualAtDay(endDay)?.m1 ?? (wi === w && LIVE.available ? LIVE.m1 : row.m1) ?? BASELINE.m1;
-      const tAct = actualAtDay(endDay)?.m3 ?? (wi === w && LIVE.available ? LIVE.m3 : row.m3) ?? BASELINE.m3;
+      const uAct = historyMetricAtWeek('m1', wi) ?? BASELINE.m1;
+      const tAct = historyMetricAtWeek('m3', wi) ?? BASELINE.m3;
       const rAct = row.m2 ?? revenueUpToDay(endDay);
       const exp = expectedAtDay(endDay);
       const cf = p => { const tr = tierOf(p); return tr === 'success' ? 'var(--ok)' : tr === 'warning' ? 'var(--risk)' : 'var(--danger)'; };
-      dotUsers = cf((uAct / exp.m1) * 100);
-      dotTempo = cf((exp.m3 / tAct) * 100);
+      dotUsers = historyMetricAtWeek('m1', wi) != null ? cf((uAct / exp.m1) * 100) : 'var(--border)';
+      dotTempo = historyMetricAtWeek('m3', wi) != null ? cf((exp.m3 / tAct) * 100) : 'var(--border)';
       dotRevenue = (hasEntries || row.m2 != null) && exp.m2 > 0 ? cf((rAct / exp.m2) * 100) : 'var(--border)';
     }
     if (expanded[wi] === undefined && wi === w) expanded[wi] = true;
-    const m1 = dbMetricAtWeek('m1', wi);
+    const m1 = historyMetricAtWeek('m1', wi);
     const m2 = row.m2;
-    const m3 = dbMetricAtWeek('m3', wi);
+    const m3 = historyMetricAtWeek('m3', wi);
+    const histTesp = m1 != null || m3 != null;
     weeks.push({
-      n: wi, isCurrent: wi === w, isFuture: wi > w,
+      n: wi, isCurrent: wi === w, isFuture: wi > w, histTesp,
       dateRange: fmtDateShort(dateForDay(weekStartDay(wi))) + '–' + fmtDateShort(dateForDay(weekEndDay(wi))),
       statusLabel: ss.label, statusBg: ss.bg, statusColor: ss.color,
       dotUsers, dotRevenue, dotTempo,
@@ -940,10 +994,12 @@ async function init() {
     });
     setSyncState('syncing', 'Buscando métricas TESP');
     const liveOk = await syncLiveMetrics();
+    setSyncState('syncing', 'Carregando histórico');
+    const histOk = await syncHistoricalMetrics();
     if (!tespConfigured()) {
       setSyncState('synced', 'OKR conectado · configure TESP');
     } else {
-      setSyncState('synced', liveOk ? 'Dados ao vivo (TESP)' : 'OKR conectado');
+      setSyncState('synced', liveOk || histOk ? 'Dados ao vivo (TESP)' : 'OKR conectado');
     }
   } catch(e) {
     setSyncState('error', 'Sem conexão');
@@ -953,8 +1009,9 @@ async function init() {
   setInterval(async () => {
     const prevLive = LIVE.available;
     const ok = await syncLiveMetrics();
-    if (ok || prevLive !== LIVE.available) {
-      setSyncState('synced', ok ? 'Dados ao vivo (TESP)' : (tespConfigured() ? 'OKR conectado' : 'OKR conectado · configure TESP'));
+    const histOk = await syncHistoricalMetrics();
+    if (ok || histOk || prevLive !== LIVE.available) {
+      setSyncState('synced', ok || histOk ? 'Dados ao vivo (TESP)' : (tespConfigured() ? 'OKR conectado' : 'OKR conectado · configure TESP'));
       render();
     }
   }, 5 * 60 * 1000);
