@@ -232,8 +232,18 @@ body {
   font-family: 'Space Grotesk', monospace; font-size: 9px; color: var(--text-2);
 }
 .chart-legend i { display: block; width: 8px; height: 2px; }
+.chart-wrap { position: relative; }
+.chart-axis-x {
+  position: absolute; top: 97.2%; transform: translateX(-50%);
+  font-family: 'Space Grotesk', monospace; font-size: 8px; color: var(--muted); white-space: nowrap;
+}
+.chart-axis-y {
+  position: absolute; left: 0; transform: translateY(-50%);
+  font-family: 'Space Grotesk', monospace; font-size: 8px; color: var(--muted);
+  background: var(--surface); padding-right: 2px;
+}
 .chart-empty {
-  height: 130px; display: flex; align-items: center; justify-content: center;
+  height: 144px; display: flex; align-items: center; justify-content: center;
   font-family: 'Space Grotesk', monospace; font-size: 11px; color: var(--muted); text-align: center;
 }
 
@@ -542,11 +552,44 @@ function linreg(points) {
   return { slope: (n * sxy - sx * sy) / denom, intercept: (sy - (n * sxy - sx * sy) / denom * sx) / n };
 }
 
-function pathFromPoints(pts, xmin, xmax, ymin, ymax) {
-  const W=300, H=130, PAD=6;
-  const sx = x => PAD + ((x - xmin) / (xmax - xmin || 1)) * (W - PAD * 2);
-  const sy = y => (H - PAD) - ((y - ymin) / (ymax - ymin || 1)) * (H - PAD * 2);
-  return pts.map((p,i) => (i===0?'M':'L') + sx(p.x).toFixed(1) + ' ' + sy(p.y).toFixed(1)).join(' ');
+const CHART_W = 300, CHART_H = 144, PAD_L = 26, PAD_R = 6, PAD_T = 8, PAD_B = 18;
+function chartSx(week) { return PAD_L + (week / 12) * (CHART_W - PAD_L - PAD_R); }
+function chartSy(y, ymin, ymax) {
+  return (CHART_H - PAD_B) - ((y - ymin) / ((ymax - ymin) || 1)) * (CHART_H - PAD_B - PAD_T);
+}
+function pathFromWeekPoints(pts, ymin, ymax) {
+  return pts.map((p, i) => (i === 0 ? 'M' : 'L') + chartSx(p.x).toFixed(1) + ' ' + chartSy(p.y, ymin, ymax).toFixed(1)).join(' ');
+}
+
+function trendPeriodBounds() {
+  let periodStartDay, periodEndDay = TODAY;
+  if (trendPeriod === '7') periodStartDay = Math.max(1, TODAY - 6);
+  else if (trendPeriod === '14') periodStartDay = Math.max(1, TODAY - 13);
+  else if (trendPeriod === 'cycle') periodStartDay = 1;
+  else {
+    periodStartDay = Math.max(1, dayFromISO(customStart) || 1);
+    periodEndDay = Math.min(TODAY, dayFromISO(customEnd) || TODAY);
+  }
+  return { periodStartDay, periodEndDay };
+}
+
+function metricWeekReader(key, wk) {
+  if (wk === 0) return key === 'm2' ? 0 : BASELINE[key];
+  if (wk > CURRENT_WEEK) return null;
+  if (key === 'm2') return revenueUpToDay(Math.min(weekEndDay(wk), TODAY));
+  const hist = historyMetricAtWeek(key, wk);
+  if (hist != null) return hist;
+  if (wk === CURRENT_WEEK && LIVE.available && LIVE[key] != null) return LIVE[key];
+  return DB[wk]?.[key] ?? null;
+}
+
+function metricDayReader(key, d) {
+  if (d <= 0) return key === 'm2' ? 0 : BASELINE[key];
+  if (key === 'm2') return revenueUpToDay(d);
+  const w = weekOf(d);
+  if (w < CURRENT_WEEK) return historyMetricAtWeek(key, w) ?? BASELINE[key];
+  if (w === CURRENT_WEEK) return actualAtDay(d)?.[key] ?? latestMetric(key, w);
+  return null;
 }
 
 // ─── SUPABASE ─────────────────────────────────────────────
@@ -671,58 +714,51 @@ function saveRevenueEntries() {
   localStorage.setItem('gc-revenue-entries', JSON.stringify(revenueEntries));
 }
 
-function buildSeries(key, cumMode) {
-  const pts = [{ x: 1, y: BASELINE[key] }];
-  for (let w = 1; w <= CURRENT_WEEK; w++) {
-    const endDay = Math.min(weekEndDay(w), TODAY);
-    let val = key === 'm2' ? revenueUpToDay(endDay) : (w === CURRENT_WEEK ? latestMetric(key, w) : DB[w]?.[key]);
-    if (val != null) pts.push({ x: endDay, y: val });
-  }
-  return pts.filter((p,i,a) => i === 0 || p.y != null);
-}
-
-function dbMetricAtWeek(key, w) {
-  if (w === CURRENT_WEEK && LIVE.available && LIVE[key] != null) return LIVE[key];
-  return DB[w]?.[key] ?? null;
-}
-
-function buildChart(label, key, cumMode, hasData) {
+function buildChart(label, key, hasData, axisFmt) {
   if (!hasData) return { label, empty: true };
-  let periodStartDay, periodEndDay = TODAY;
-  if (trendPeriod === '7') periodStartDay = Math.max(1, TODAY - 6);
-  else if (trendPeriod === '14') periodStartDay = Math.max(1, TODAY - 13);
-  else if (trendPeriod === 'cycle') periodStartDay = 1;
-  else {
-    periodStartDay = Math.max(1, dayFromISO(customStart) || 1);
-    periodEndDay = Math.min(TODAY, dayFromISO(customEnd) || TODAY);
-  }
-  const expFn = d => expectedAtDay(d)[key];
+  const { periodStartDay, periodEndDay } = trendPeriodBounds();
+  const maxWeek = Math.min(12, weekOf(TODAY));
+
   const realPts = [];
-  if (key === 'm1' || key === 'm3') {
-    if (periodStartDay <= 1) realPts.push({ x: 1, y: BASELINE[key] });
-    for (let w = 1; w <= CURRENT_WEEK; w++) {
-      const endDay = Math.min(weekEndDay(w), TODAY);
-      if (endDay < periodStartDay || endDay > periodEndDay) continue;
-      const val = dbMetricAtWeek(key, w);
-      if (val != null) realPts.push({ x: endDay, y: val });
-    }
-  } else {
-    const realFn = d => revenueUpToDay(d);
-    for (let d = periodStartDay; d <= periodEndDay; d++) realPts.push({ x: d, y: realFn(d) });
+  for (let wk = 0; wk <= maxWeek; wk++) {
+    const val = metricWeekReader(key, wk);
+    if (wk > 0 && val == null) continue;
+    realPts.push({ x: wk, y: val ?? (key === 'm2' ? 0 : BASELINE[key]) });
   }
+
   const metaPts = [];
-  for (let d = 1; d <= CYCLE_DAYS; d += 4) metaPts.push({ x: d, y: expFn(d) });
-  const fallbackY = realPts.length ? realPts[realPts.length - 1].y : BASELINE[key];
-  const reg = linreg(realPts.length >= 2 ? realPts : [{ x: periodStartDay, y: fallbackY }, { x: TODAY, y: fallbackY }]);
-  const projPts = [{ x: periodStartDay, y: reg.slope * periodStartDay + reg.intercept }, { x: CYCLE_DAYS, y: reg.slope * CYCLE_DAYS + reg.intercept }];
-  const allY = [...realPts.map(p=>p.y), ...metaPts.map(p=>p.y), ...projPts.map(p=>p.y)];
+  for (let wk = 1; wk <= 12; wk++) metaPts.push({ x: wk, y: expectedAtDay(weekEndDay(wk))[key] });
+
+  const regPts = [];
+  for (let d = Math.max(1, periodStartDay); d <= periodEndDay; d++) regPts.push({ x: d, y: metricDayReader(key, d) });
+  const reg = linreg(regPts.length >= 2 ? regPts : [{ x: 1, y: metricDayReader(key, 1) }, { x: TODAY, y: metricDayReader(key, TODAY) }]);
+  const projPts = [
+    { x: 1, y: reg.slope * weekEndDay(1) + reg.intercept },
+    { x: 12, y: reg.slope * weekEndDay(12) + reg.intercept },
+  ];
+
+  const allY = [...realPts.map(p => p.y), ...metaPts.map(p => p.y), ...projPts.map(p => p.y)];
   const ymin = Math.min(...allY), ymax = Math.max(...allY);
-  const pad = (ymax - ymin) * 0.1 || 1;
+  const pad = (ymax - ymin) * 0.12 || 1;
+  const yLo = ymin - pad, yHi = ymax + pad;
+  const plotBottom = CHART_H - PAD_B;
+
+  const xTicks = [];
+  for (let wk = 0; wk <= 12; wk++) xTicks.push({ px: chartSx(wk).toFixed(1), leftPct: ((chartSx(wk) / CHART_W) * 100).toFixed(1), label: 'S' + wk });
+
+  const yTicks = [
+    { topPct: ((chartSy(yHi, yLo, yHi) / CHART_H) * 100).toFixed(1), label: axisFmt(ymax) },
+    { topPct: ((chartSy(yLo, yLo, yHi) / CHART_H) * 100).toFixed(1), label: axisFmt(ymin) },
+  ];
+
+  const realDots = realPts.map(p => ({ cx: chartSx(p.x).toFixed(1), cy: chartSy(p.y, yLo, yHi).toFixed(1) }));
+
   return {
-    label, empty: false,
-    realPath: pathFromPoints(realPts, 1, CYCLE_DAYS, ymin - pad, ymax + pad),
-    metaPath: pathFromPoints(metaPts, 1, CYCLE_DAYS, ymin - pad, ymax + pad),
-    projPath: pathFromPoints(projPts, 1, CYCLE_DAYS, ymin - pad, ymax + pad),
+    label, empty: false, plotBottom,
+    realPath: pathFromWeekPoints(realPts, yLo, yHi),
+    metaPath: pathFromWeekPoints(metaPts, yLo, yHi),
+    projPath: pathFromWeekPoints(projPts, yLo, yHi),
+    xTicks, yTicks, realDots,
   };
 }
 
@@ -813,9 +849,19 @@ function renderTrend(data) {
   const customDates = trendPeriod === 'custom' ? `<span style="color:var(--muted);font-size:11px">–</span><input type="date" id="custom-start" value="${customStart}"><span style="color:var(--muted);font-size:11px">–</span><input type="date" id="custom-end" value="${customEnd}">` : '';
   const charts = data.trendCharts.map(ch => {
     if (ch.empty) return `<div class="card chart-card"><div class="chart-head"><div class="card-label">${ch.label}</div></div><div class="chart-empty">sem dados suficientes<br>aguardando 1º lançamento</div></div>`;
+    const gridLines = ch.xTicks.map(xt => `<line x1="${xt.px}" y1="6" x2="${xt.px}" y2="${ch.plotBottom}" stroke="var(--border)" stroke-width="1"/>`).join('');
+    const dots = ch.realDots.map(rd => `<circle cx="${rd.cx}" cy="${rd.cy}" r="2.2" fill="var(--text)"/>`).join('');
+    const xLabels = ch.xTicks.map(xt => `<div class="chart-axis-x" style="left:${xt.leftPct}%">${xt.label}</div>`).join('');
+    const yLabels = ch.yTicks.map(yt => `<div class="chart-axis-y" style="top:${yt.topPct}%">${yt.label}</div>`).join('');
     return `<div class="card chart-card"><div class="chart-head"><div class="card-label">${ch.label}</div>
       <div class="chart-legend"><span><i style="background:var(--text)"></i>real</span><span><i style="background:var(--muted)"></i>meta</span><span><i style="background:var(--accent-fill)"></i>proj.</span></div></div>
-      <svg viewBox="0 0 300 130" width="100%" height="130"><path d="${ch.metaPath}" fill="none" stroke="var(--muted)" stroke-width="1.5" stroke-dasharray="4 3"/><path d="${ch.projPath}" fill="none" stroke="var(--accent-fill)" stroke-width="1.5" stroke-dasharray="2 3"/><path d="${ch.realPath}" fill="none" stroke="var(--text)" stroke-width="2"/></svg></div>`;
+      <div class="chart-wrap">
+        <svg viewBox="0 0 300 144" width="100%" height="144">${gridLines}
+          <path d="${ch.metaPath}" fill="none" stroke="var(--muted)" stroke-width="1.5" stroke-dasharray="4 3"/>
+          <path d="${ch.projPath}" fill="none" stroke="var(--accent-fill)" stroke-width="1.5" stroke-dasharray="2 3"/>
+          <path d="${ch.realPath}" fill="none" stroke="var(--text)" stroke-width="2"/>${dots}
+        </svg>${xLabels}${yLabels}
+      </div></div>`;
   }).join('');
   document.getElementById('sec-trend').innerHTML = `
     <div class="trend-head"><div class="section-title muted">Tendência</div>
@@ -921,9 +967,9 @@ function computeData() {
   const hasDbUsers = Object.values(DB).some(r => r?.m1 != null) || LIVE.available;
   const hasDbTempo = Object.values(DB).some(r => r?.m3 != null) || LIVE.available;
   const trendCharts = [
-    buildChart('Usuários (WAU)', 'm1', false, hasDbUsers),
-    buildChart('Receita acumulada', 'm2', true, hasEntries || Object.values(DB).some(r => r?.m2 != null)),
-    buildChart('Tempo médio', 'm3', false, hasDbTempo),
+    buildChart('Usuários (WAU)', 'm1', hasDbUsers, n => fmtInt(n)),
+    buildChart('Receita acumulada', 'm2', hasEntries || Object.values(DB).some(r => r?.m2 != null), n => fmtMoney(n)),
+    buildChart('Tempo médio', 'm3', hasDbTempo, n => Number(n).toFixed(1)),
   ];
 
   const statusStyles = {
