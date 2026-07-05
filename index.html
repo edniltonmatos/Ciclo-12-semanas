@@ -428,7 +428,9 @@ const EXPECTED = {
 let DB = {};
 let LIVE = { m1: null, m3: null, updatedAt: null, available: false };
 let HIST_METRICS = {};
+let DAY_METRICS = {};
 const HIST_CACHE_KEY = 'gc-hist-metrics-v1';
+const DAY_CACHE_KEY = 'gc-day-metrics-v1';
 let revenueEntries = JSON.parse(localStorage.getItem('gc-revenue-entries') || '[]');
 let expanded = {};
 let trendPeriod = localStorage.getItem('gc-trend-period') || '14';
@@ -469,6 +471,24 @@ function metricsPeriod() {
   const end = new Date();
   const start = new Date(end.getTime() - WAU_PERIOD_DAYS * 86400000);
   return { inicio: start.toISOString(), fim: end.toISOString() };
+}
+function dayPeriodBounds(d) {
+  return {
+    inicio: dateForDay(d).toISOString(),
+    fim: new Date(dateForDay(d).getTime() + 86400000).toISOString(),
+  };
+}
+function dayCacheKey(d, bounds) {
+  return `d${d}:${bounds.inicio}`;
+}
+function loadDayCache() {
+  try { return JSON.parse(sessionStorage.getItem(DAY_CACHE_KEY) || '{}'); } catch (_) { return {}; }
+}
+function saveDayCache(cache) {
+  try { sessionStorage.setItem(DAY_CACHE_KEY, JSON.stringify(cache)); } catch (_) {}
+}
+function dayMetricAt(key, d) {
+  return DAY_METRICS[d]?.[key] ?? null;
 }
 function weekPeriodBounds(w) {
   const startDay = weekStartDay(w);
@@ -588,16 +608,16 @@ function pathFromPoints(pts, domainMin, domainMax, ymin, ymax) {
 function trendPeriodBounds() {
   let periodStartDay, periodEndDay;
   if (trendPeriod === '7') {
-    periodStartDay = Math.max(1, TODAY - 6);
-    periodEndDay = TODAY;
+    periodStartDay = TODAY - 3;
+    periodEndDay = Math.min(CYCLE_DAYS, TODAY + 3);
   } else if (trendPeriod === '14') {
-    periodStartDay = Math.max(1, TODAY - 13);
-    periodEndDay = TODAY;
+    periodStartDay = TODAY - 7;
+    periodEndDay = Math.min(CYCLE_DAYS, TODAY + 6);
   } else if (trendPeriod === 'cycle') {
     periodStartDay = 1;
     periodEndDay = TODAY;
   } else {
-    periodStartDay = Math.max(1, dayFromISO(customStart) || 1);
+    periodStartDay = dayFromISO(customStart) || 1;
     periodEndDay = Math.min(CYCLE_DAYS, dayFromISO(customEnd) || TODAY);
     if (periodStartDay > periodEndDay) periodStartDay = periodEndDay;
   }
@@ -605,11 +625,15 @@ function trendPeriodBounds() {
 }
 
 function expectedForKey(key, d) {
-  return expectedAtDay(Math.max(1, d))[key];
+  if (d < 1) return key === 'm2' ? 0 : BASELINE[key];
+  return expectedAtDay(d)[key];
 }
 
 function metricDayReader(key, d) {
-  if (d <= 0) return key === 'm2' ? 0 : BASELINE[key];
+  if (d < 1) {
+    if (key === 'm2') return 0;
+    return dayMetricAt(key, d) ?? BASELINE[key];
+  }
   if (key === 'm2') return revenueUpToDay(Math.min(d, TODAY));
   if (d > TODAY) return expectedForKey(key, d);
   const w = weekOf(d);
@@ -619,7 +643,7 @@ function metricDayReader(key, d) {
     const actual = actualAtDay(d)?.[key];
     if (actual != null) return actual;
     if (hist != null && d < TODAY) {
-      const prev = w > 1 ? (historyMetricAtWeek(key, w - 1) ?? BASELINE[key]) : BASELINE[key];
+      const prev = w > 1 ? (historyMetricAtWeek(key, w - 1) ?? BASELINE[key]) : (dayMetricAt(key, 0) ?? BASELINE[key]);
       const span = Math.max(1, TODAY - weekStartDay(w) + 1);
       const frac = (d - weekStartDay(w) + 1) / span;
       return prev + (hist - prev) * frac;
@@ -637,8 +661,9 @@ const TREND_METRICS = {
 
 function trendMetricHasData(key) {
   if (key === 'm2') return revenueEntries.length > 0 || Object.values(DB).some(r => r?.m2 != null);
-  if (key === 'm1') return Object.values(HIST_METRICS).some(r => r?.m1 != null) || LIVE.available || Object.values(DB).some(r => r?.m1 != null);
-  return Object.values(HIST_METRICS).some(r => r?.m3 != null) || LIVE.available || Object.values(DB).some(r => r?.m3 != null);
+  const hasDay = Object.values(DAY_METRICS).some(r => r?.[key] != null);
+  if (key === 'm1') return hasDay || Object.values(HIST_METRICS).some(r => r?.m1 != null) || LIVE.available || Object.values(DB).some(r => r?.m1 != null);
+  return hasDay || Object.values(HIST_METRICS).some(r => r?.m3 != null) || LIVE.available || Object.values(DB).some(r => r?.m3 != null);
 }
 
 function buildChart(label, key, hasData, axisFmt, weekly) {
@@ -658,7 +683,7 @@ function buildChart(label, key, hasData, axisFmt, weekly) {
     metaPts = [];
     for (let wk = 1; wk <= 12; wk++) metaPts.push({ x: wk, y: expectedForKey(key, weekEndDay(wk)) });
     const regPts = [];
-    for (let d = 1; d <= TODAY; d++) regPts.push({ x: d, y: metricDayReader(key, d) });
+    for (let d = TODAY - 7; d <= TODAY; d++) regPts.push({ x: d, y: metricDayReader(key, d) });
     const reg = linreg(regPts);
     projPts = [
       { x: 1, y: reg.slope * weekEndDay(1) + reg.intercept },
@@ -685,7 +710,7 @@ function buildChart(label, key, hasData, axisFmt, weekly) {
     labelStep = step;
     xTicks = [];
     for (let d = periodStartDay; d <= periodEndDay; d += step) {
-      xTicks.push({ x: d, label: fmtDateShort(dateForDay(Math.max(1, d))), isToday: d === TODAY });
+      xTicks.push({ x: d, label: fmtDateShort(dateForDay(d)), isToday: d === TODAY });
     }
     if (!xTicks.some(xt => xt.isToday) && TODAY >= periodStartDay && TODAY <= periodEndDay) {
       xTicks.push({ x: TODAY, label: fmtDateShort(dateForDay(TODAY)), isToday: true });
@@ -814,6 +839,30 @@ async function syncHistoricalMetrics() {
   }));
   if (cacheUpdated) saveHistCache(cache);
   return Object.keys(HIST_METRICS).length > 0;
+}
+async function syncPreCycleMetrics() {
+  if (!tespConfigured()) return false;
+  const fromDay = TODAY - 14;
+  const cache = loadDayCache();
+  let cacheUpdated = false;
+  await Promise.all(Array.from({ length: 1 - fromDay }, (_, i) => {
+    const d = fromDay + i;
+    if (d > 0) return Promise.resolve();
+    const bounds = dayPeriodBounds(d);
+    const ck = dayCacheKey(d, bounds);
+    if (cache[ck]) {
+      DAY_METRICS[d] = cache[ck];
+      return Promise.resolve();
+    }
+    return fetchMetricsForPeriod(bounds.inicio, bounds.fim).then(metrics => {
+      if (!metrics) return;
+      DAY_METRICS[d] = { m1: metrics.m1, m3: metrics.m3 };
+      cache[ck] = DAY_METRICS[d];
+      cacheUpdated = true;
+    });
+  }));
+  if (cacheUpdated) saveDayCache(cache);
+  return Object.keys(DAY_METRICS).length > 0;
 }
 async function syncLiveMetrics() {
   try {
@@ -1132,7 +1181,7 @@ function render() {
 
 async function init() {
   if (!newEntryDate) newEntryDate = isoForDay(TODAY);
-  if (!customStart) customStart = isoForDay(Math.max(1, TODAY - 13));
+  if (!customStart) customStart = isoForDay(TODAY - 13);
   if (!customEnd) customEnd = isoForDay(TODAY);
   setSyncState('syncing', 'Conectando');
   try {
@@ -1145,10 +1194,11 @@ async function init() {
     const liveOk = await syncLiveMetrics();
     setSyncState('syncing', 'Carregando histórico');
     const histOk = await syncHistoricalMetrics();
+    const preOk = await syncPreCycleMetrics();
     if (!tespConfigured()) {
       setSyncState('synced', 'OKR conectado');
     } else {
-      setSyncState('synced', liveOk || histOk ? 'Dados ao vivo' : 'OKR conectado');
+      setSyncState('synced', liveOk || histOk || preOk ? 'Dados ao vivo' : 'OKR conectado');
     }
   } catch(e) {
     setSyncState('error', 'Sem conexão');
@@ -1159,8 +1209,9 @@ async function init() {
     const prevLive = LIVE.available;
     const ok = await syncLiveMetrics();
     const histOk = await syncHistoricalMetrics();
-    if (ok || histOk || prevLive !== LIVE.available) {
-      setSyncState('synced', ok || histOk ? 'Dados ao vivo' : 'OKR conectado');
+    const preOk = await syncPreCycleMetrics();
+    if (ok || histOk || preOk || prevLive !== LIVE.available) {
+      setSyncState('synced', ok || histOk || preOk ? 'Dados ao vivo' : 'OKR conectado');
       render();
     }
   }, 5 * 60 * 1000);
