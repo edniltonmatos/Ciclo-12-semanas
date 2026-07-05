@@ -5,111 +5,56 @@ O dashboard usa **dois projetos Supabase separados**:
 | Projeto | Uso | Dados |
 |---------|-----|-------|
 | **1 ano em 12 semanas** | Registro semanal OKR (`okr_ciclo`) | Notas, receita manual, histórico por semana |
-| **TESP \| Tempo de espera SP** | Métricas ao vivo | WAU e tempo médio de espera |
+| **TESP \| Tempo de espera SP** | Métricas ao vivo | WAU e tempo médio via `wait_contributions` |
 
 ---
 
-## Passo 1 — Credenciais do projeto TESP
+## Como funciona
 
-1. Abra o [Supabase Dashboard](https://supabase.com/dashboard)
-2. Selecione o projeto **TESP | Tempo de espera SP**
-3. Vá em **Project Settings → API**
-4. Copie:
-   - **Project URL** (ex.: `https://xxxxxxxx.supabase.co`)
-   - **anon public** key
+Nenhuma tabela nova é criada. Uma **função RPC** (`get_okr_live_metrics`) lê a tabela existente `wait_contributions` e calcula:
 
----
+| Métrica | Definição |
+|---------|-----------|
+| **WAU** | Contribuidores distintos (`contributor_user_id` ou `app_install_id`) com ≥1 registro no período |
+| **Tempo médio** | Média de `wait_ms` convertida para minutos (`wait_ms / 60000`) |
 
-## Passo 2 — Conferir a tabela `registros`
-
-1. No projeto TESP, abra **Table Editor → registros**
-2. Confirme que existem colunas equivalentes a:
-
-| Coluna esperada | Uso |
-|-----------------|-----|
-| `user_id` | UUID do usuário autenticado (pode ser nulo) |
-| `installation_id` | UUID da instalação anônima (pode ser nulo) |
-| `tempo_espera` | Tempo de espera em **minutos** (numérico) |
-| `created_at` | Data/hora do registro |
-
-Se os nomes forem diferentes (ex.: `tempo_minutos`, `usuario_id`), edite o arquivo  
-`supabase/tesp/get_okr_live_metrics.sql` antes de executar.
+Período padrão: **últimos 7 dias**.
 
 ---
 
-## Passo 3 — Criar a RPC no TESP
+## Setup (já aplicado no TESP)
 
-1. No projeto **TESP**, abra **SQL Editor**
-2. Cole e execute o conteúdo de [`supabase/tesp/get_okr_live_metrics.sql`](../supabase/tesp/get_okr_live_metrics.sql)
-3. Teste:
+A função já foi criada no projeto **TESP | Tempo de espera SP** via migration `get_okr_live_metrics`.
+
+Para replicar manualmente, execute [`supabase/tesp/get_okr_live_metrics.sql`](../supabase/tesp/get_okr_live_metrics.sql) no SQL Editor do TESP.
+
+Teste:
 
 ```sql
 SELECT public.get_okr_live_metrics();
 ```
 
-Resultado esperado:
-
-```json
-{"wau": 438, "tempo_medio": 5.6, "inicio": "...", "fim": "...", "updated_at": "..."}
-```
-
-### Definições das métricas
-
-- **WAU** — quantidade de usuários distintos (`user_id` ou `installation_id`) que fizeram **ao menos 1 registro** na tabela `registros` durante o período
-- **Tempo médio** — média aritmética de `tempo_espera` (minutos) de todos os registros no período
-
-Por padrão o período são os **últimos 7 dias**. O dashboard também pode enviar datas customizadas.
-
 ---
 
-## Passo 4 — (Opcional) Separar ciclos no projeto OKR
+## Credenciais no dashboard
 
-Se ainda não rodou, execute no projeto **1 ano em 12 semanas**:
-
-[`supabase/okr/add_ciclo_column.sql`](../supabase/okr/add_ciclo_column.sql)
-
-Isso evita que dados do Ciclo 2 apareçam no Ciclo 3.
-
----
-
-## Passo 5 — Configurar o dashboard
-
-Edite `index.html` e preencha as constantes do TESP:
+Em `index.html`:
 
 ```javascript
-// Projeto OKR — 1 ano em 12 semanas
+// OKR — 1 ano em 12 semanas
 const OKR_SUPABASE_URL = 'https://sbywtjxgkhqdeplymhdz.supabase.co';
-const OKR_SUPABASE_KEY = 'sua-chave-anon-do-projeto-okr';
+const OKR_SUPABASE_KEY = '...';
 
-// Projeto TESP — Tempo de espera SP
-const TESP_SUPABASE_URL = 'https://SEU-PROJETO-TESP.supabase.co';
-const TESP_SUPABASE_KEY = 'sua-chave-anon-do-projeto-tesp';
+// TESP — Tempo de espera SP
+const TESP_SUPABASE_URL = 'https://qrlsyhffqrprbljhirkk.supabase.co';
+const TESP_SUPABASE_KEY = '...'; // anon key do projeto TESP
 ```
 
-Salve, abra o dashboard no browser e verifique o indicador **"Dados ao vivo"** no header.
-
 ---
 
-## Passo 6 — Permissões (se a RPC retornar erro)
+## (Opcional) Separar ciclos no projeto OKR
 
-Se `get_okr_live_metrics()` existir mas o dashboard não conseguir chamar:
-
-1. Confirme que o `GRANT EXECUTE ... TO anon` foi executado (está no SQL acima)
-2. Em **Authentication → Policies**, verifique se a RPC não está bloqueada
-
-A RPC usa `SECURITY DEFINER`, então ela lê `registros` com permissão elevada — o cliente anon só precisa de permissão para **executar a função**, não para ler a tabela diretamente.
-
----
-
-## Solução de problemas
-
-| Sintoma | Causa provável | Ação |
-|---------|----------------|------|
-| "Sem conexão" no header | Chave anon errada ou URL incorreta | Revise Passo 1 e 5 |
-| Sincronizado, mas sem "Dados ao vivo" | RPC não criada no TESP | Execute Passo 3 |
-| RPC retorna erro de coluna | Nome de coluna diferente em `registros` | Ajuste o SQL e reexecute |
-| WAU = 0 com dados na tabela | Colunas `user_id`/`installation_id` vazias | Confira schema real da tabela |
-| Tempo médio = null | Coluna de tempo com outro nome ou sem dados no período | Ajuste `tempo_espera` no SQL |
+Execute no projeto **1 ano em 12 semanas**: [`supabase/okr/add_ciclo_column.sql`](../supabase/okr/add_ciclo_column.sql)
 
 ---
 
@@ -118,11 +63,21 @@ A RPC usa `SECURITY DEFINER`, então ela lê `registros` com permissão elevada 
 ```mermaid
 flowchart LR
   Dashboard[index.html]
-  OKR[(Supabase OKR\nokr_ciclo)]
-  TESP[(Supabase TESP\nregistros)]
+  OKR[(OKR\nokr_ciclo)]
+  TESP[(TESP\nwait_contributions)]
   RPC[get_okr_live_metrics]
 
-  Dashboard -->|salvar semana / notas| OKR
-  Dashboard -->|buscar WAU + tempo| RPC
-  RPC --> TESP
+  Dashboard -->|notas / receita| OKR
+  Dashboard -->|WAU + tempo| RPC
+  RPC -->|SELECT agregado| TESP
 ```
+
+---
+
+## Solução de problemas
+
+| Sintoma | Ação |
+|---------|------|
+| Sem "Dados ao vivo (TESP)" | Confirme URL/key do TESP e se a RPC existe |
+| WAU = 0 | Verifique se há registros recentes em `wait_contributions` |
+| Tempo médio = null | Registros sem `wait_ms` no período |

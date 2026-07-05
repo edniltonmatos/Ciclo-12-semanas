@@ -1,12 +1,5 @@
 -- TESP | Tempo de espera SP
--- Execute no SQL Editor do projeto TESP (NÃO no projeto "1 ano em 12 semanas")
---
--- Antes de rodar: confira os nomes das colunas da tabela `registros` em
--- Table Editor → registros. Ajuste os nomes abaixo se forem diferentes.
-
--- ─── RPC: métricas para o dashboard OKR ──────────────────────────────────────
--- WAU       = usuários distintos com ≥1 registro no período
--- Tempo méd = média de tempo de espera dos registros no período
+-- Apenas a função RPC — usa a tabela existente wait_contributions (sem criar tabelas)
 
 CREATE OR REPLACE FUNCTION public.get_okr_live_metrics(
   p_inicio timestamptz DEFAULT (now() - interval '7 days'),
@@ -22,21 +15,21 @@ DECLARE
   wau_val integer;
   tempo_val numeric;
 BEGIN
-  -- Usuário = quem tem user_id (conta) OU installation_id (instalação anônima)
-  SELECT COUNT(DISTINCT COALESCE(user_id::text, installation_id::text))
+  -- WAU: contribuidores distintos com ≥1 registro em wait_contributions no período
+  SELECT COUNT(DISTINCT COALESCE(contributor_user_id::text, app_install_id::text))
     INTO wau_val
-  FROM public.registros
+  FROM public.wait_contributions
   WHERE created_at >= p_inicio
     AND created_at < p_fim
-    AND COALESCE(user_id, installation_id) IS NOT NULL;
+    AND COALESCE(contributor_user_id, app_install_id) IS NOT NULL;
 
-  -- Tempo médio de espera (ajuste "tempo_espera" se a coluna tiver outro nome)
-  SELECT ROUND(AVG(tempo_espera)::numeric, 2)
+  -- Tempo médio de espera (wait_ms → minutos)
+  SELECT ROUND(AVG(wait_ms)::numeric / 60000.0, 2)
     INTO tempo_val
-  FROM public.registros
+  FROM public.wait_contributions
   WHERE created_at >= p_inicio
     AND created_at < p_fim
-    AND tempo_espera IS NOT NULL;
+    AND wait_ms IS NOT NULL;
 
   RETURN jsonb_build_object(
     'wau', COALESCE(wau_val, 0),
@@ -51,5 +44,4 @@ $$;
 REVOKE ALL ON FUNCTION public.get_okr_live_metrics(timestamptz, timestamptz) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.get_okr_live_metrics(timestamptz, timestamptz) TO anon, authenticated;
 
--- ─── Teste rápido (últimos 7 dias) ───────────────────────────────────────────
--- SELECT public.get_okr_live_metrics();
+-- Teste: SELECT public.get_okr_live_metrics();
