@@ -588,17 +588,18 @@ function pathFromPoints(pts, domainMin, domainMax, ymin, ymax) {
 function trendPeriodBounds() {
   let periodStartDay, periodEndDay;
   if (trendPeriod === '7') {
-    periodStartDay = Math.max(1, TODAY - 3);
-    periodEndDay = Math.min(CYCLE_DAYS, TODAY + 3);
+    periodStartDay = Math.max(1, TODAY - 6);
+    periodEndDay = TODAY;
   } else if (trendPeriod === '14') {
-    periodStartDay = Math.max(1, TODAY - 7);
-    periodEndDay = Math.min(CYCLE_DAYS, TODAY + 6);
+    periodStartDay = Math.max(1, TODAY - 13);
+    periodEndDay = TODAY;
   } else if (trendPeriod === 'cycle') {
     periodStartDay = 1;
     periodEndDay = TODAY;
   } else {
     periodStartDay = Math.max(1, dayFromISO(customStart) || 1);
     periodEndDay = Math.min(CYCLE_DAYS, dayFromISO(customEnd) || TODAY);
+    if (periodStartDay > periodEndDay) periodStartDay = periodEndDay;
   }
   return { periodStartDay, periodEndDay };
 }
@@ -613,7 +614,18 @@ function metricDayReader(key, d) {
   if (d > TODAY) return expectedForKey(key, d);
   const w = weekOf(d);
   if (w < CURRENT_WEEK) return historyMetricAtWeek(key, w) ?? BASELINE[key];
-  if (w === CURRENT_WEEK) return actualAtDay(d)?.[key] ?? latestMetric(key, w);
+  if (w === CURRENT_WEEK) {
+    const hist = historyMetricAtWeek(key, w);
+    const actual = actualAtDay(d)?.[key];
+    if (actual != null) return actual;
+    if (hist != null && d < TODAY) {
+      const prev = w > 1 ? (historyMetricAtWeek(key, w - 1) ?? BASELINE[key]) : BASELINE[key];
+      const span = Math.max(1, TODAY - weekStartDay(w) + 1);
+      const frac = (d - weekStartDay(w) + 1) / span;
+      return prev + (hist - prev) * frac;
+    }
+    return hist ?? latestMetric(key, w);
+  }
   return expectedForKey(key, d);
 }
 
@@ -658,7 +670,9 @@ function buildChart(label, key, hasData, axisFmt, weekly) {
     domainMin = periodStartDay;
     domainMax = Math.max(periodStartDay + 1, periodEndDay);
     realPts = [];
-    for (let d = periodStartDay; d <= Math.min(periodEndDay, TODAY); d++) realPts.push({ x: d, y: metricDayReader(key, d) });
+    for (let d = periodStartDay; d <= Math.min(periodEndDay, TODAY); d++) {
+      realPts.push({ x: d, y: metricDayReader(key, d) });
+    }
     metaPts = [];
     for (let d = periodStartDay; d <= periodEndDay; d++) metaPts.push({ x: d, y: expectedForKey(key, d) });
     const reg = linreg(realPts.length >= 2 ? realPts : metaPts);
