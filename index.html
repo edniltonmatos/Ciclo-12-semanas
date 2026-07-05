@@ -3,6 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#0E0F0C" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#F7F8F2" media="(prefers-color-scheme: light)">
+<meta name="description" content="Acompanhamento OKR do Ciclo 3 — Grana Certa · 12 semanas">
 <title>Grana Certa — Ciclo 12 Semanas</title>
 <link rel="icon" type="image/svg+xml" href="app-icon-512.svg">
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;700;800&family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
@@ -60,12 +63,35 @@ body {
   transition: background 0.2s, color 0.2s;
 }
 
+body::before {
+  content: '';
+  position: fixed;
+  top: -220px; left: 50%;
+  transform: translateX(-50%);
+  width: min(920px, 100vw);
+  height: 620px;
+  background: radial-gradient(ellipse, color-mix(in srgb, var(--accent) 9%, transparent) 0%, transparent 68%);
+  pointer-events: none;
+  z-index: 0;
+}
+
 header {
   position: relative;
   z-index: 1;
   border-bottom: 1px solid var(--border);
   padding: 40px 0 52px;
+  overflow: hidden;
 }
+
+.header-mark {
+  position: absolute;
+  top: 24px; right: -20px;
+  width: 180px; height: auto;
+  opacity: 0.07;
+  pointer-events: none;
+  user-select: none;
+}
+@media (max-width: 680px) { .header-mark { width: 120px; top: 56px; right: -10px; opacity: 0.05; } }
 
 .container {
   max-width: 1000px;
@@ -90,11 +116,62 @@ header {
   border-radius: 50%;
   background: var(--surface);
   color: var(--text);
-  font-size: 16px;
   cursor: pointer;
-  transition: border-color 0.2s, transform 0.15s;
+  transition: border-color 0.2s, transform 0.15s, background 0.2s;
+  flex-shrink: 0;
 }
-.theme-toggle:hover { border-color: var(--accent-text); transform: rotate(15deg); }
+.theme-toggle:hover { border-color: var(--accent-text); transform: rotate(15deg); background: var(--surface-2); }
+.theme-toggle svg { width: 16px; height: 16px; display: block; }
+.theme-toggle .icon-sun { display: none; }
+.theme-toggle .icon-moon { display: block; }
+:root[data-theme="light"] .theme-toggle .icon-sun { display: block; }
+:root[data-theme="light"] .theme-toggle .icon-moon { display: none; }
+:root[data-theme="light"] .header-mark,
+:root[data-theme="light"] .footer-mark { filter: brightness(0.45) saturate(1.3); }
+
+.cycle-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  flex-wrap: wrap;
+  margin-bottom: 28px;
+  max-width: 620px;
+}
+.cycle-dates {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 13px;
+  color: var(--muted);
+  letter-spacing: -0.2px;
+}
+.cycle-progress {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 180px;
+}
+.cycle-progress-label {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 11px; font-weight: 700;
+  letter-spacing: 2px; text-transform: uppercase;
+  color: var(--accent-text);
+  white-space: nowrap;
+}
+.cycle-progress-track {
+  display: flex;
+  gap: 4px;
+  flex: 1;
+}
+.cycle-seg {
+  flex: 1;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--border);
+  transition: background 0.2s;
+}
+.cycle-seg.is-done { background: color-mix(in srgb, var(--accent) 45%, var(--border)); }
+.cycle-seg.is-current { background: var(--accent); box-shadow: 0 0 8px color-mix(in srgb, var(--accent) 50%, transparent); }
 
 .eyebrow {
   display: flex;
@@ -185,7 +262,15 @@ h1 em { font-style: normal; color: var(--accent-text); }
   line-height: 1; margin-bottom: 4px;
 }
 
-.meta-desc { font-size: 12px; color: var(--muted); margin-bottom: 20px; line-height: 1.4; }
+.meta-desc { font-size: 12px; color: var(--muted); margin-bottom: 8px; line-height: 1.4; }
+
+.meta-baseline {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 11px;
+  color: var(--muted);
+  margin-bottom: 16px;
+}
+.meta-baseline span { color: var(--text-2); font-weight: 500; }
 
 .prog-bg { height: 3px; border-radius: 2px; background: var(--border); position: relative; overflow: hidden; }
 .prog-fill {
@@ -261,7 +346,59 @@ h1 em { font-style: normal; color: var(--accent-text); }
   transition: border-color 0.2s;
 }
 .semana-block.is-active { border-color: var(--accent-text); }
-.semana-block.is-done { opacity: 0.5; }
+.semana-block.is-future { opacity: 0.55; }
+
+.week-nav {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding: 4px 0 14px;
+  margin-bottom: 4px;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+.week-nav::-webkit-scrollbar { display: none; }
+.week-pill {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 11px; font-weight: 700;
+  letter-spacing: 1px;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  background: var(--surface);
+  color: var(--muted);
+  padding: 6px 12px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+  flex-shrink: 0;
+}
+.week-pill:hover { border-color: var(--accent-text); color: var(--text-2); }
+.week-pill.is-current {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--ink);
+}
+.week-pill.is-done {
+  border-color: color-mix(in srgb, var(--accent) 30%, var(--border));
+  color: var(--text-2);
+}
+
+.site-footer {
+  margin-top: 64px;
+  padding-top: 28px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.footer-mark { height: 28px; width: auto; opacity: 0.55; }
+.footer-copy {
+  font-size: 11px;
+  color: var(--muted);
+  letter-spacing: 0.5px;
+}
 
 .semana-header {
   display: flex; align-items: center;
@@ -358,6 +495,10 @@ input[type="number"], textarea {
 input::-webkit-outer-spin-button,
 input::-webkit-inner-spin-button { -webkit-appearance: none; }
 input:focus, textarea:focus { border-color: var(--accent); }
+input:focus-visible, textarea:focus-visible, button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
 textarea { resize: vertical; min-height: 64px; font-family: 'Inter', sans-serif; font-size: 13px; line-height: 1.5; }
 
 .dica {
@@ -411,6 +552,8 @@ header        { animation: fadeUp 0.4s ease both; }
   header { padding: 32px 0 32px; }
   .brand-logo { height: 34px; }
   h1 { letter-spacing: -1px; }
+  .cycle-meta { flex-direction: column; align-items: flex-start; gap: 12px; }
+  .cycle-progress { width: 100%; }
   .semana-header { padding: 12px 14px; }
   .semana-body { padding: 0 14px 20px; }
   .expected-strip { margin: 0 -14px 20px; padding-left: 14px; padding-right: 14px; }
@@ -423,16 +566,34 @@ header        { animation: fadeUp 0.4s ease both; }
 <body>
 
 <header>
+  <img class="header-mark" src="mark-only-dark.svg" alt="" aria-hidden="true">
   <div class="container">
     <div class="brand-row">
       <img id="brand-logo" class="brand-logo" src="logo-horizontal-dark.svg" alt="Grana Certa">
-      <button class="theme-toggle" id="theme-toggle" onclick="toggleTheme()" aria-label="Alternar tema claro/escuro"></button>
+      <button class="theme-toggle" id="theme-toggle" onclick="toggleTheme()" aria-label="Alternar tema claro/escuro">
+        <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+        </svg>
+        <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/>
+          <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+          <line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/>
+          <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+        </svg>
+      </button>
     </div>
     <div class="eyebrow">
       <div class="eyebrow-line"></div>
       <span class="eyebrow-text" id="eyebrow-week">Ciclo 3 · 12 Semanas · OKR · Carregando...</span>
     </div>
     <h1>Construindo<br>o <em>Grana Certa.</em></h1>
+    <div class="cycle-meta">
+      <span class="cycle-dates" id="cycle-dates">05/07 – 26/09/2026</span>
+      <div class="cycle-progress">
+        <span class="cycle-progress-label" id="cycle-week-label">S01</span>
+        <div class="cycle-progress-track" id="cycle-progress-track" aria-hidden="true"></div>
+      </div>
+    </div>
     <div class="objetivo-block">
       <div class="obj-bar"></div>
       <div>
@@ -453,6 +614,7 @@ header        { animation: fadeUp 0.4s ease both; }
         <p class="meta-eyebrow">KR 01 · Usuários</p>
         <div class="meta-value" id="cur-m1">—</div>
         <p class="meta-desc">usuários ativos por semana (WAU) · meta 4.500<br>crescimento de uso real, não de vaidade</p>
+        <p class="meta-baseline">baseline <span>438</span></p>
         <div class="prog-bg"><div class="prog-fill" id="bar-m1"></div></div>
         <div class="prog-labels"><span class="prog-pct" id="pct-m1">—</span><span>4.500</span></div>
       </div>
@@ -461,6 +623,7 @@ header        { animation: fadeUp 0.4s ease both; }
         <p class="meta-eyebrow">KR 02 · Receita</p>
         <div class="meta-value" id="cur-m2">—</div>
         <p class="meta-desc">receita acumulada · meta R$3.000<br>apenas produtos digitais do app</p>
+        <p class="meta-baseline">baseline <span>R$0</span></p>
         <div class="prog-bg"><div class="prog-fill" id="bar-m2"></div></div>
         <div class="prog-labels"><span class="prog-pct" id="pct-m2">—</span><span>R$3.000</span></div>
       </div>
@@ -469,6 +632,7 @@ header        { animation: fadeUp 0.4s ease both; }
         <p class="meta-eyebrow">KR 03 · Tempo médio</p>
         <div class="meta-value" id="cur-m3">—</div>
         <p class="meta-desc">tempo médio de resposta · meta 2,0 min<br>quanto menor, melhor</p>
+        <p class="meta-baseline">baseline <span>5,6 min</span></p>
         <div class="prog-bg"><div class="prog-fill" id="bar-m3"></div></div>
         <div class="prog-labels"><span class="prog-pct" id="pct-m3">—</span><span>2,0 min</span></div>
       </div>
@@ -486,6 +650,7 @@ header        { animation: fadeUp 0.4s ease both; }
         <button class="reset-btn" onclick="resetAll()">↺ Resetar</button>
       </div>
     </div>
+    <nav class="week-nav" id="week-nav" aria-label="Navegação por semana"></nav>
     <div id="semanas-wrap">
       <div class="loading-wrap">
         <div class="loading-spinner"></div>
@@ -493,6 +658,11 @@ header        { animation: fadeUp 0.4s ease both; }
       </div>
     </div>
   </div>
+
+  <footer class="container site-footer">
+    <img class="footer-mark" src="mark-only-dark.svg" alt="" aria-hidden="true">
+    <span class="footer-copy">Grana Certa · Ciclo 3 · OKR 12 semanas</span>
+  </footer>
 
 </div>
 
@@ -506,10 +676,7 @@ function applyTheme(theme) {
   const logo = document.getElementById('brand-logo');
   if (logo) logo.src = theme === 'light' ? 'logo-horizontal-light.svg' : 'logo-horizontal-dark.svg';
   const btn = document.getElementById('theme-toggle');
-  if (btn) {
-    btn.textContent = theme === 'light' ? '🌙' : '☀️';
-    btn.setAttribute('aria-label', theme === 'light' ? 'Ativar modo escuro' : 'Ativar modo claro');
-  }
+  if (btn) btn.setAttribute('aria-label', theme === 'light' ? 'Ativar modo escuro' : 'Ativar modo claro');
 }
 function toggleTheme() {
   const current = document.documentElement.getAttribute('data-theme');
@@ -651,6 +818,54 @@ function fmtMin(v) {
   return Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + ' min';
 }
 
+function fmtCycleDate(d) {
+  return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+}
+
+function updateCycleMeta() {
+  const dates = document.getElementById('cycle-dates');
+  if (dates) dates.textContent = `${fmtCycleDate(CICLO_START).slice(0, 5)} – ${fmtCycleDate(CICLO_END)}`;
+
+  const label = document.getElementById('cycle-week-label');
+  if (label) label.textContent = `S${String(CURRENT_WEEK).padStart(2, '0')}`;
+
+  const track = document.getElementById('cycle-progress-track');
+  if (track && !track.children.length) {
+    for (let s = 1; s <= 12; s++) {
+      const seg = document.createElement('div');
+      seg.className = 'cycle-seg'
+        + (s < CURRENT_WEEK ? ' is-done' : '')
+        + (s === CURRENT_WEEK ? ' is-current' : '');
+      seg.title = `Semana ${s}`;
+      track.appendChild(seg);
+    }
+  }
+}
+
+function buildWeekNav() {
+  const nav = document.getElementById('week-nav');
+  if (!nav) return;
+  nav.innerHTML = '';
+  for (let s = 1; s <= 12; s++) {
+    const hasData = DB[s] && (DB[s].m1 != null || DB[s].m2 != null || DB[s].m3 != null);
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'week-pill'
+      + (s === CURRENT_WEEK ? ' is-current' : '')
+      + (s < CURRENT_WEEK && hasData ? ' is-done' : '');
+    btn.textContent = `S${String(s).padStart(2, '0')}`;
+    btn.onclick = () => jumpToWeek(s);
+    nav.appendChild(btn);
+  }
+}
+
+function jumpToWeek(s) {
+  const el = document.getElementById('blk-' + s);
+  if (!el) return;
+  el.classList.add('is-open');
+  el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
 // ─── OVERVIEW ────────────────────────────────────────────
 // Baseline atual do ciclo (antes de qualquer registro semanal): 438 WAU, R$0, 5,6 min
 function updateOverview() {
@@ -698,7 +913,7 @@ function build() {
     el.className = 'semana-block'
       + (isCurrent ? ' is-active' : '')
       + (isCurrent ? ' is-open' : '')
-      + (isFuture  ? ' is-done'  : '');
+      + (isFuture  ? ' is-future'  : '');
     el.id = 'blk-'+s;
 
     // Datas da semana
@@ -760,6 +975,7 @@ function build() {
   }
 
   updateOverview();
+  buildWeekNav();
 }
 
 // ─── TOGGLE ───────────────────────────────────────────────
@@ -823,6 +1039,7 @@ async function resetAll() {
 
 // ─── INIT ─────────────────────────────────────────────────
 async function init() {
+  updateCycleMeta();
   setSyncState('syncing', 'Conectando');
   try {
     const rows = await dbLoad();
