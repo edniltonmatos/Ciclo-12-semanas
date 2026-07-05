@@ -18,652 +18,337 @@
 </script>
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+::selection { background: #B5FF2D; color: #000; }
+input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(0.6); }
+:root[data-theme="dark"] input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(0.6); }
 
 :root {
-  /* Fixas — não variam por tema */
-  --accent:         #B5FF2D; /* lima — cor primária, usada em vários elementos */
+  --accent-fill: #B5FF2D;
   --accent-pressed: #9AE01A;
-  --ink:            #0E0F0C; /* texto sobre lima ou sobre farol — sempre escuro */
-  --ok:             #22C55E;
-  --risk:           #FFAA00;
-  --danger:         #FF4040;
+  --on-accent: #000;
+  --ok: #22C55E;
+  --ok-bg: #0D2B1A;
+  --risk: #FFAA00;
+  --risk-bg: #2B1F00;
+  --danger: #FF4040;
+  --danger-bg: #2B0A0A;
+  --info: #4D9EFF;
 }
 :root[data-theme="dark"] {
-  --bg:          #0E0F0C;
-  --surface:     #161712;
-  --surface-2:   #1F2119;
-  --border:      #2A2D22;
-  --text:        #F7F8F2;
-  --text-2:      #D4D6CE;
-  --muted:       #6B7060;
-  --accent-text: #B5FF2D; /* lima legível como texto */
+  --bg: #0E0F0C; --surface: #161712; --elevated: #1F2119; --overlay: #2A2D22;
+  --text: #F7F8F2; --text-2: #D4D6CE; --muted: #6B7060;
+  --accent: #B5FF2D; --accent-subtle: #3D5A06; --accent-border: #72A812;
+  --border: #2A2D22; --border-strong: #3D4030;
 }
 :root[data-theme="light"] {
-  --bg:          #F7F8F2;
-  --surface:     #FFFFFF;
-  --surface-2:   #ECEEE6;
-  --border:      #E5E7DF;
-  --text:        #0E0F0C;
-  --text-2:      #4A5040;
-  --muted:       #6B7060;
-  --accent-text: #5A8A00; /* lima escurecida para contraste sobre fundo claro */
+  --bg: #F7F8F2; --surface: #FFFFFF; --elevated: #FFFFFF; --overlay: #ECEEE6;
+  --text: #0E0F0C; --text-2: #4A5040; --muted: #A8AA9E;
+  --accent: #5A8A00; --accent-subtle: #E8FFB0; --accent-border: #CCEE80;
+  --border: #E5E7DF; --border-strong: #C8CABC;
+  --ok-bg: #DCFCE7; --risk-bg: #FFF3D0; --danger-bg: #FFE5E5;
 }
 
 html { scroll-behavior: smooth; }
-
 body {
-  background: var(--bg);
-  color: var(--text);
-  font-family: 'Inter', sans-serif;
-  font-size: 14px;
-  line-height: 1.6;
-  min-height: 100vh;
-  padding-bottom: 100px;
-  -webkit-font-smoothing: antialiased;
+  background: var(--bg); color: var(--text);
+  font-family: Inter, sans-serif; font-size: 14px; line-height: 1.6;
+  min-height: 100vh; -webkit-font-smoothing: antialiased;
   transition: background 0.2s, color 0.2s;
 }
 
-body::before {
-  content: '';
-  position: fixed;
-  top: -220px; left: 50%;
-  transform: translateX(-50%);
-  width: min(920px, 100vw);
-  height: 620px;
-  background: radial-gradient(ellipse, color-mix(in srgb, var(--accent) 9%, transparent) 0%, transparent 68%);
-  pointer-events: none;
-  z-index: 0;
+.sticky-header {
+  position: sticky; top: 0; z-index: 100;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 16px 28px; border-bottom: 1px solid var(--border);
+  background: var(--bg); gap: 16px; flex-wrap: wrap;
 }
+.header-left { display: flex; align-items: center; gap: 10px; min-width: 0; flex-wrap: wrap; }
+.header-mark svg { display: block; flex-shrink: 0; }
+.header-wordmark {
+  font-family: 'Barlow Condensed', sans-serif; font-weight: 800;
+  font-size: 15px; line-height: 0.95; letter-spacing: 0.4px;
+}
+.header-wordmark .w1 { color: var(--text); }
+.header-wordmark .w2 { color: var(--accent); font-weight: 500; }
+.header-divider { width: 1px; height: 24px; background: var(--border); margin: 0 6px; flex-shrink: 0; }
+.header-cycle {
+  font-family: Inter, sans-serif; font-weight: 600; font-size: 11px;
+  letter-spacing: 0.15em; color: var(--muted); text-transform: uppercase;
+}
+.header-cycle em { font-style: normal; color: var(--accent); }
+.header-right { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
 
-header {
-  position: relative;
-  z-index: 1;
-  border-bottom: 1px solid var(--border);
-  padding: 40px 0 52px;
-  overflow: hidden;
+.btn-copy {
+  display: flex; align-items: center; gap: 7px;
+  font-family: Inter, sans-serif; font-weight: 600; font-size: 11px;
+  letter-spacing: 1px; text-transform: uppercase;
+  background: var(--surface); color: var(--text-2);
+  border: 1px solid var(--border); border-radius: 6px;
+  padding: 8px 14px; cursor: pointer; transition: border-color 0.15s, background 0.15s;
 }
+.btn-copy:hover { border-color: var(--accent-border); }
+.btn-copy.is-copied { background: var(--accent-subtle); color: var(--accent); border-color: var(--accent-border); }
 
-.header-mark {
-  position: absolute;
-  top: 24px; right: -20px;
-  width: 180px; height: auto;
-  opacity: 0.07;
-  pointer-events: none;
-  user-select: none;
+.sync-pill {
+  display: flex; align-items: center; gap: 6px;
+  font-family: Inter, sans-serif; font-size: 10px; font-weight: 600;
+  letter-spacing: 1px; text-transform: uppercase; color: var(--muted);
 }
-@media (max-width: 680px) { .header-mark { width: 120px; top: 56px; right: -10px; opacity: 0.05; } }
-
-.container {
-  max-width: 1000px;
-  margin: 0 auto;
-  padding: 0 28px;
-  position: relative;
-  z-index: 1;
-}
-
-.brand-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 36px;
-}
-.brand-logo { height: 44px; width: auto; display: block; }
+.sync-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--muted); }
+.sync-dot.syncing { background: var(--risk); animation: pulse 1s infinite; }
+.sync-dot.synced { background: var(--ok); }
+.sync-dot.error { background: var(--danger); }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
 
 .theme-toggle {
-  width: 36px; height: 36px;
-  display: flex; align-items: center; justify-content: center;
-  border: 1px solid var(--border);
-  border-radius: 50%;
-  background: var(--surface);
-  color: var(--text);
-  cursor: pointer;
-  transition: border-color 0.2s, transform 0.15s, background 0.2s;
-  flex-shrink: 0;
+  width: 32px; height: 32px; border-radius: 16px;
+  border: 1px solid var(--border); background: var(--surface);
+  color: var(--accent); display: flex; align-items: center; justify-content: center;
+  cursor: pointer; transition: border-color 0.15s;
 }
-.theme-toggle:hover { border-color: var(--accent-text); transform: rotate(15deg); background: var(--surface-2); }
-.theme-toggle svg { width: 16px; height: 16px; display: block; }
+.theme-toggle:hover { border-color: var(--accent-border); }
+.theme-toggle svg { width: 15px; height: 15px; display: block; }
 .theme-toggle .icon-sun { display: none; }
 .theme-toggle .icon-moon { display: block; }
 :root[data-theme="light"] .theme-toggle .icon-sun { display: block; }
 :root[data-theme="light"] .theme-toggle .icon-moon { display: none; }
-:root[data-theme="light"] .header-mark,
-:root[data-theme="light"] .footer-mark { filter: brightness(0.45) saturate(1.3); }
 
-.cycle-meta {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 20px;
-  flex-wrap: wrap;
-  margin-bottom: 28px;
-  max-width: 620px;
-}
-.cycle-dates {
-  font-family: 'Space Grotesk', sans-serif;
-  font-size: 13px;
-  color: var(--muted);
-  letter-spacing: -0.2px;
-}
-.cycle-progress {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex: 1;
-  min-width: 180px;
-}
-.cycle-progress-label {
-  font-family: 'Barlow Condensed', sans-serif;
-  font-size: 11px; font-weight: 700;
-  letter-spacing: 2px; text-transform: uppercase;
-  color: var(--accent-text);
-  white-space: nowrap;
-}
-.cycle-progress-track {
-  display: flex;
-  gap: 4px;
-  flex: 1;
-}
-.cycle-seg {
-  flex: 1;
-  height: 4px;
-  border-radius: 2px;
-  background: var(--border);
-  transition: background 0.2s;
-}
-.cycle-seg.is-done { background: color-mix(in srgb, var(--accent) 45%, var(--border)); }
-.cycle-seg.is-current { background: var(--accent); box-shadow: 0 0 8px color-mix(in srgb, var(--accent) 50%, transparent); }
+.main { max-width: 1160px; margin: 0 auto; padding: 0 28px 80px; }
 
-.eyebrow {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 20px;
+.section-head {
+  display: flex; align-items: baseline; gap: 10px; margin-bottom: 4px;
 }
-.eyebrow-line { width: 24px; height: 1px; background: var(--accent); flex-shrink: 0; }
-.eyebrow-text {
-  font-family: 'Barlow Condensed', sans-serif;
-  font-size: 12px; font-weight: 700;
-  letter-spacing: 3px; text-transform: uppercase;
-  color: var(--accent-text);
+.section-head.accent .section-dash { background: var(--accent-fill); }
+.section-dash { width: 20px; height: 2px; background: var(--accent-fill); flex-shrink: 0; }
+.section-title {
+  font-family: Inter, sans-serif; font-weight: 600; font-size: 12px;
+  letter-spacing: 0.27em; text-transform: uppercase;
+}
+.section-title.accent { color: var(--accent); }
+.section-title.muted { color: var(--muted); font-size: 11px; }
+.section-rule { height: 1px; background: var(--border); margin-bottom: 16px; }
+
+.obj-row {
+  padding-top: 24px; display: flex; align-items: center;
+  justify-content: space-between; gap: 20px; flex-wrap: wrap;
+}
+.obj-h1 {
+  font-family: 'Barlow Condensed', sans-serif; font-weight: 800;
+  font-size: 28px; letter-spacing: -0.02em; line-height: 1.05; margin: 0;
+}
+.obj-h1 em { font-style: normal; color: var(--accent); }
+.obj-summary {
+  font-size: 13px; line-height: 1.5; color: var(--text-2); max-width: 480px;
 }
 
-h1 {
-  font-family: 'Barlow Condensed', sans-serif;
-  font-size: clamp(34px, 6vw, 58px);
-  font-weight: 800;
-  letter-spacing: -1.5px;
-  line-height: 1.0;
-  color: var(--text);
-  margin-bottom: 36px;
-}
-h1 em { font-style: normal; color: var(--accent-text); }
+.grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+@media (max-width: 900px) { .grid-3 { grid-template-columns: 1fr; } }
 
-.objetivo-block {
-  border: 1px solid var(--border);
-  background: var(--surface);
-  border-radius: 6px;
-  padding: 20px 24px;
-  display: flex;
-  gap: 20px;
-  align-items: flex-start;
-  max-width: 620px;
+.card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 6px; padding: 18px;
 }
-.obj-bar { width: 3px; border-radius: 2px; background: var(--accent); flex-shrink: 0; align-self: stretch; }
-.obj-label {
-  font-family: 'Barlow Condensed', sans-serif;
-  font-size: 11px; font-weight: 700;
-  letter-spacing: 3px; text-transform: uppercase;
-  color: var(--accent-text); margin-bottom: 6px;
+.card-label {
+  font-family: Inter, sans-serif; font-weight: 600; font-size: 11px;
+  letter-spacing: 0.2em; color: var(--muted); text-transform: uppercase;
 }
-.obj-text { font-size: 14px; color: var(--text-2); line-height: 1.5; }
-
-.section-gap { margin-top: 52px; }
-
-.section-label {
-  font-family: 'Barlow Condensed', sans-serif;
-  font-size: 12px; font-weight: 700;
-  letter-spacing: 3px; text-transform: uppercase;
-  color: var(--muted);
-  display: flex; align-items: center; gap: 14px;
-  margin-bottom: 16px;
+.card-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+.badge {
+  font-family: Inter, sans-serif; font-weight: 600; font-size: 10px;
+  letter-spacing: 1.5px; padding: 3px 8px; border-radius: 20px;
 }
-.section-label::after { content: ''; flex: 1; height: 1px; background: var(--border); }
-
-.metas-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 14px;
+.metric-pair { display: flex; gap: 20px; }
+.metric-box .metric-key {
+  font-family: 'Space Grotesk', monospace; font-size: 10px; color: var(--muted);
 }
-@media (max-width: 680px) { .metas-grid { grid-template-columns: 1fr; } }
-
-.meta-card {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  overflow: hidden;
-  padding: 24px;
-  position: relative;
-  transition: background 0.15s, border-color 0.15s;
+.metric-box .metric-val {
+  font-family: 'Barlow Condensed', sans-serif; font-weight: 800; font-size: 26px;
 }
-.meta-card:hover { background: var(--surface-2); border-color: color-mix(in srgb, var(--accent-text) 35%, var(--border)); }
-.meta-top-bar { position: absolute; top: 0; left: 0; right: 0; height: 3px; background: var(--accent); }
+.metric-box .metric-val.secondary { color: var(--text-2); }
 
-.meta-eyebrow {
-  font-family: 'Barlow Condensed', sans-serif;
-  font-size: 11px; font-weight: 700;
-  letter-spacing: 3px; text-transform: uppercase;
-  color: var(--accent-text); margin-bottom: 14px; margin-top: 6px;
+.week-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 16px; margin-top: 0; }
+.week-grid .metric-key {
+  font-family: 'Space Grotesk', monospace; font-size: 10px; color: var(--muted);
+}
+.week-grid .metric-val {
+  font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 19px;
 }
 
-.meta-value {
-  font-family: 'Barlow Condensed', sans-serif;
-  font-size: 40px; font-weight: 800;
-  letter-spacing: -1.5px; color: var(--text);
-  line-height: 1; margin-bottom: 4px;
+.revenue-bar {
+  margin-top: 20px; background: var(--surface); border: 1px solid var(--border);
+  border-radius: 6px; padding: 14px 18px;
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+}
+.revenue-bar label {
+  font-family: Inter, sans-serif; font-weight: 600; font-size: 11px;
+  letter-spacing: 0.15em; color: var(--muted); text-transform: uppercase; white-space: nowrap;
+}
+.revenue-bar input[type="date"],
+.revenue-bar input[type="number"],
+.revenue-bar input[type="text"] {
+  background: var(--elevated); border: 1px solid var(--border-strong);
+  border-radius: 6px; padding: 7px 10px;
+  font-family: 'Space Grotesk', monospace; font-size: 12px; color: var(--text);
+  outline: none;
+}
+.revenue-bar input[type="number"] { width: 110px; }
+.revenue-bar input:focus { border-color: var(--accent-fill); }
+.revenue-chips { margin-left: auto; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.revenue-chip {
+  font-family: 'Space Grotesk', monospace; font-size: 11px; color: var(--text-2);
+  background: var(--elevated); border: 1px solid var(--border);
+  border-radius: 20px; padding: 4px 10px;
 }
 
-.meta-desc { font-size: 12px; color: var(--muted); margin-bottom: 8px; line-height: 1.4; }
-
-.meta-baseline {
-  font-family: 'Space Grotesk', sans-serif;
-  font-size: 11px;
-  color: var(--muted);
-  margin-bottom: 16px;
+.trend-head {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 4px; flex-wrap: wrap; gap: 10px;
 }
-.meta-baseline span { color: var(--text-2); font-weight: 500; }
-
-.prog-bg { height: 3px; border-radius: 2px; background: var(--border); position: relative; overflow: hidden; }
-.prog-fill {
-  height: 3px; background: var(--accent);
-  width: 0%; position: absolute; top: 0; left: 0;
-  transition: width 0.7s cubic-bezier(.4,0,.2,1);
-}
-.prog-labels {
-  display: flex; justify-content: space-between;
-  font-family: 'Space Grotesk', sans-serif;
-  font-size: 11px; color: var(--muted); margin-top: 8px;
-}
-.prog-pct { color: var(--accent-text); font-weight: 500; }
-
-.top-row {
-  display: flex; justify-content: space-between;
-  align-items: center; flex-wrap: wrap; gap: 10px;
-  margin-bottom: 16px;
-}
-
-/* SYNC STATUS */
-.sync-status {
-  font-family: 'Barlow Condensed', sans-serif;
-  font-size: 11px; font-weight: 700;
-  letter-spacing: 2px; text-transform: uppercase;
-  color: var(--muted);
-  display: flex; align-items: center; gap: 8px;
-}
-.sync-dot {
-  width: 6px; height: 6px;
-  background: var(--muted);
-  border-radius: 50%;
-  transition: background 0.3s;
-}
-.sync-dot.syncing { background: var(--risk); animation: pulse 1s infinite; }
-.sync-dot.synced  { background: var(--ok); }
-.sync-dot.error   { background: var(--danger); }
-@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
-
-.reset-btn {
-  font-family: 'Barlow Condensed', sans-serif;
-  font-size: 11px; font-weight: 700;
-  letter-spacing: 2px; text-transform: uppercase;
-  color: var(--muted); background: none;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: 7px 14px; cursor: pointer;
-  transition: color 0.2s, border-color 0.2s;
-}
-.reset-btn:hover { color: var(--danger); border-color: var(--danger); }
-
-/* LOADING */
-.loading-wrap {
-  display: flex; align-items: center; gap: 12px;
-  padding: 32px 0; color: var(--muted);
-  font-size: 12px; letter-spacing: 2px; text-transform: uppercase;
-}
-.loading-spinner {
-  width: 16px; height: 16px;
-  border: 2px solid var(--border);
-  border-top-color: var(--accent);
-  border-radius: 50%;
-  animation: spin 0.7s linear infinite;
-}
-@keyframes spin { to { transform: rotate(360deg); } }
-
-.semana-block {
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  overflow: hidden;
-  background: var(--surface);
-  margin-bottom: 10px;
-  transition: border-color 0.2s;
-}
-.semana-block.is-active { border-color: var(--accent-text); }
-.semana-block.is-future { opacity: 0.55; }
-
-.week-nav {
-  display: flex;
-  gap: 6px;
-  overflow-x: auto;
-  padding: 4px 0 14px;
-  margin-bottom: 4px;
-  scrollbar-width: none;
-  -webkit-overflow-scrolling: touch;
-}
-.week-nav::-webkit-scrollbar { display: none; }
-.week-pill {
-  font-family: 'Barlow Condensed', sans-serif;
-  font-size: 11px; font-weight: 700;
-  letter-spacing: 1px;
-  border: 1px solid var(--border);
-  border-radius: 20px;
-  background: var(--surface);
-  color: var(--muted);
-  padding: 6px 12px;
-  cursor: pointer;
-  white-space: nowrap;
-  transition: border-color 0.15s, color 0.15s, background 0.15s;
-  flex-shrink: 0;
-}
-.week-pill:hover { border-color: var(--accent-text); color: var(--text-2); }
-.week-pill.is-current {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: var(--ink);
-}
-.week-pill.is-done {
-  border-color: color-mix(in srgb, var(--accent) 30%, var(--border));
-  color: var(--text-2);
-}
-
-.site-footer {
-  margin-top: 64px;
-  padding-top: 28px;
-  border-top: 1px solid var(--border);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  flex-wrap: wrap;
-}
-.footer-mark { height: 28px; width: auto; opacity: 0.55; }
-.footer-copy {
-  font-size: 11px;
-  color: var(--muted);
-  letter-spacing: 0.5px;
-}
-
-.semana-header {
-  display: flex; align-items: center;
-  justify-content: space-between;
-  padding: 14px 20px; cursor: pointer;
-  user-select: none; gap: 12px;
-  transition: background 0.15s;
-}
-.semana-header:hover { background: var(--surface-2); }
-
-.sem-left { display: flex; align-items: center; gap: 16px; min-width: 0; }
-
-.sem-num {
-  font-family: 'Barlow Condensed', sans-serif;
-  font-size: 12px; font-weight: 700;
-  letter-spacing: 2px; color: var(--muted);
-  white-space: nowrap; min-width: 44px;
-}
-.semana-block.is-active .sem-num { color: var(--accent-text); }
-
-.sem-vals { display: flex; gap: 16px; flex-wrap: wrap; }
-.sem-val-item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }
-.sem-dot { width: 4px; height: 4px; border-radius: 50%; background: var(--accent); flex-shrink: 0; }
-.sem-val { font-family: 'Space Grotesk', sans-serif; color: var(--text-2); font-weight: 500; }
-
-.sem-right { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
-
-.status-pill {
-  font-family: 'Barlow Condensed', sans-serif;
-  font-size: 11px; font-weight: 700;
+.period-pills { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.period-pill {
+  font-family: Inter, sans-serif; font-weight: 600; font-size: 10px;
   letter-spacing: 1px; text-transform: uppercase;
-  border-radius: 20px;
-  padding: 4px 12px; border: 1px solid transparent;
+  background: transparent; color: var(--muted);
+  border: 1px solid var(--border); border-radius: 20px;
+  padding: 6px 12px; cursor: pointer; transition: all 0.15s;
 }
-/* Farol — sempre semântico e fixo, independente do tema */
-.s-ok     { color: var(--ink); background: var(--ok); }
-.s-risco  { color: var(--ink); background: var(--risk); }
-.s-atras  { color: var(--ink); background: var(--danger); }
-.s-atual  { color: var(--ink); background: var(--accent); }
-.s-vazio  { color: var(--muted); border-color: var(--border); background: transparent; }
-.s-futura { color: var(--muted); border-color: var(--border); background: transparent; }
-
-.chevron { color: var(--muted); font-size: 10px; transition: transform 0.2s; flex-shrink: 0; }
-.semana-block.is-open .chevron { transform: rotate(180deg); }
-
-.semana-body {
-  display: none;
-  padding: 0 20px 24px;
-  border-top: 1px solid var(--border);
+.period-pill.is-active {
+  background: var(--accent-subtle); color: var(--accent); border-color: var(--accent-border);
 }
-.semana-block.is-open .semana-body { display: block; }
-
-.expected-strip {
-  background: var(--bg);
-  border-bottom: 1px solid var(--border);
-  padding: 12px 16px;
-  display: flex; align-items: center;
-  gap: 24px; flex-wrap: wrap;
-  margin: 0 -20px 20px;
-  padding-left: 20px; padding-right: 20px;
+.period-dates input {
+  background: var(--elevated); border: 1px solid var(--border-strong);
+  border-radius: 6px; padding: 5px 8px;
+  font-family: 'Space Grotesk', monospace; font-size: 11px; color: var(--text);
 }
-.exp-head { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: var(--muted); white-space: nowrap; }
-.exp-item { display: flex; flex-direction: column; gap: 2px; }
-.exp-sub { font-size: 10px; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); }
-.exp-val { font-family: 'Space Grotesk', sans-serif; font-size: 15px; font-weight: 500; color: var(--accent-text); letter-spacing: -0.3px; }
-
-.inputs-grid {
-  display: grid; grid-template-columns: repeat(3, 1fr);
-  gap: 12px; margin-bottom: 14px;
+.chart-card { padding: 16px; }
+.chart-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.chart-legend { display: flex; gap: 10px; flex-wrap: wrap; }
+.chart-legend span {
+  display: flex; align-items: center; gap: 4px;
+  font-family: 'Space Grotesk', monospace; font-size: 9px; color: var(--text-2);
 }
-@media (max-width: 560px) { .inputs-grid { grid-template-columns: 1fr; } }
-
-.field { display: flex; flex-direction: column; gap: 6px; }
-.field-label {
-  font-family: 'Barlow Condensed', sans-serif;
-  font-size: 11px; font-weight: 700;
-  letter-spacing: 2px; text-transform: uppercase;
-  color: var(--accent-text);
+.chart-legend i { display: block; width: 8px; height: 2px; }
+.chart-empty {
+  height: 130px; display: flex; align-items: center; justify-content: center;
+  font-family: 'Space Grotesk', monospace; font-size: 11px; color: var(--muted); text-align: center;
 }
-.field-sub { font-size: 11px; color: var(--muted); margin-top: -3px; line-height: 1.3; }
 
-input[type="number"], textarea {
-  background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  color: var(--text);
-  font-family: 'Space Grotesk', sans-serif;
-  font-size: 14px;
-  padding: 10px 12px;
-  outline: none; width: 100%;
-  transition: border-color 0.15s;
-  -moz-appearance: textfield; appearance: textfield;
+.week-row {
+  border: 1px solid var(--border); border-radius: 6px;
+  margin-bottom: 8px; overflow: hidden; background: transparent;
 }
-input::-webkit-outer-spin-button,
-input::-webkit-inner-spin-button { -webkit-appearance: none; }
-input:focus, textarea:focus { border-color: var(--accent); }
-input:focus-visible, textarea:focus-visible, button:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
+.week-row.is-current { background: var(--surface); border-color: var(--accent-fill); }
+.week-row-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 18px; cursor: pointer; user-select: none; gap: 12px;
 }
-textarea { resize: vertical; min-height: 64px; font-family: 'Inter', sans-serif; font-size: 13px; line-height: 1.5; }
-
-.dica {
-  background: var(--bg);
-  border: 1px solid var(--border);
-  border-left: 3px solid var(--accent);
-  border-radius: 6px;
-  padding: 12px 16px;
-  font-size: 12px; color: var(--muted);
-  line-height: 1.6; margin: 14px 0 16px;
+.week-row-head:hover { background: var(--overlay); }
+.week-num {
+  font-family: 'Barlow Condensed', sans-serif; font-weight: 700;
+  font-size: 13px; width: 30px; flex-shrink: 0;
 }
-.dica strong { color: var(--text-2); font-weight: 600; }
-
+.week-row.is-future .week-num { color: var(--muted); }
+.week-dots { display: flex; gap: 5px; }
+.week-dots i { width: 6px; height: 6px; border-radius: 3px; display: block; }
+.week-meta { display: flex; align-items: center; gap: 14px; flex-shrink: 0; }
+.week-dates { font-family: 'Space Grotesk', monospace; font-size: 11px; color: var(--muted); }
+.status-chip {
+  font-family: Inter, sans-serif; font-weight: 600; font-size: 10px;
+  letter-spacing: 1.5px; padding: 4px 10px; border-radius: 20px;
+}
+.week-chevron { color: var(--muted); transition: transform 0.15s; font-size: 12px; }
+.week-row.is-open .week-chevron { transform: rotate(180deg); }
+.week-body { padding: 0 18px 18px; display: none; }
+.week-row.is-open .week-body { display: block; }
+.week-values { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 14px; }
+@media (max-width: 560px) { .week-values { grid-template-columns: 1fr; } }
+.week-field label {
+  font-family: Inter, sans-serif; font-weight: 600; font-size: 10px;
+  letter-spacing: 0.2em; color: var(--muted); text-transform: uppercase;
+  display: block; margin-bottom: 6px;
+}
+.week-field input, .week-field textarea {
+  width: 100%; background: var(--elevated); border: 1px solid var(--border);
+  border-radius: 6px; padding: 10px 12px; color: var(--text);
+  font-family: 'Space Grotesk', monospace; font-size: 14px; outline: none;
+}
+.week-field input:focus, .week-field textarea:focus { border-color: var(--accent-fill); }
+.week-field textarea { font-family: Inter, sans-serif; font-size: 13px; min-height: 56px; resize: vertical; }
+.week-field .display-val {
+  font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 20px;
+}
 .btn-save {
-  font-family: 'Barlow Condensed', sans-serif;
-  font-size: 12px; font-weight: 700;
-  letter-spacing: 2px; text-transform: uppercase;
-  background: var(--accent); color: var(--ink);
-  border: none; border-radius: 6px;
-  padding: 11px 24px;
-  cursor: pointer; transition: background 0.15s;
+  margin-top: 14px; font-family: Inter, sans-serif; font-weight: 600;
+  font-size: 11px; letter-spacing: 1.5px; text-transform: uppercase;
+  background: var(--accent-fill); color: var(--on-accent);
+  border: none; border-radius: 6px; padding: 8px 16px; cursor: pointer;
 }
 .btn-save:hover { background: var(--accent-pressed); }
-.btn-save:active { opacity: 0.8; }
 .btn-save:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.mt-36 { margin-top: 36px; }
+.mt-40 { margin-top: 40px; }
+.mt-48 { margin-top: 48px; }
 
 .toast {
   position: fixed; bottom: 28px; right: 24px;
-  background: var(--accent); color: var(--ink);
-  font-family: 'Barlow Condensed', sans-serif;
-  font-size: 12px; font-weight: 700;
-  letter-spacing: 2px; text-transform: uppercase;
-  border-radius: 20px;
-  padding: 12px 20px;
-  opacity: 0; transform: translateY(8px);
-  transition: opacity 0.2s, transform 0.2s;
-  pointer-events: none; z-index: 999;
+  background: var(--accent-fill); color: var(--on-accent);
+  font-family: 'Barlow Condensed', sans-serif; font-size: 12px; font-weight: 700;
+  letter-spacing: 2px; text-transform: uppercase; border-radius: 20px;
+  padding: 12px 20px; opacity: 0; transform: translateY(8px);
+  transition: opacity 0.2s, transform 0.2s; pointer-events: none; z-index: 999;
 }
 .toast.show { opacity: 1; transform: translateY(0); }
-.toast.error { background: var(--danger); color: var(--ink); }
+.toast.error { background: var(--danger); color: var(--on-accent); }
 
-@keyframes fadeUp {
-  from { opacity: 0; transform: translateY(14px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-header        { animation: fadeUp 0.4s ease both; }
-.metas-grid   { animation: fadeUp 0.4s 0.1s ease both; }
-#semanas-wrap { animation: fadeUp 0.4s 0.18s ease both; }
-
-@media (max-width: 480px) {
-  header { padding: 32px 0 32px; }
-  .brand-logo { height: 34px; }
-  h1 { letter-spacing: -1px; }
-  .cycle-meta { flex-direction: column; align-items: flex-start; gap: 12px; }
-  .cycle-progress { width: 100%; }
-  .semana-header { padding: 12px 14px; }
-  .semana-body { padding: 0 14px 20px; }
-  .expected-strip { margin: 0 -14px 20px; padding-left: 14px; padding-right: 14px; }
-  .sem-vals { display: none; }
-  .expected-strip { gap: 14px; }
-  .container { padding: 0 16px; }
+@media (max-width: 680px) {
+  .sticky-header { padding: 12px 16px; }
+  .header-divider, .header-cycle { display: none; }
+  .main { padding: 0 16px 60px; }
+  .header-left { gap: 8px; }
 }
 </style>
 </head>
 <body>
 
-<header>
-  <img class="header-mark" src="mark-only-dark.svg" alt="" aria-hidden="true">
-  <div class="container">
-    <div class="brand-row">
-      <img id="brand-logo" class="brand-logo" src="logo-horizontal-dark.svg" alt="Grana Certa">
-      <button class="theme-toggle" id="theme-toggle" onclick="toggleTheme()" aria-label="Alternar tema claro/escuro">
-        <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
-          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
-        </svg>
-        <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
-          <circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/>
-          <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
-          <line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/>
-          <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
-        </svg>
-      </button>
+<header class="sticky-header">
+  <div class="header-left">
+    <div class="header-mark" aria-hidden="true">
+      <svg viewBox="0 0 60 45" width="26" height="20">
+        <path d="M4 36 A26 26 0 1 1 56 36" stroke="var(--accent-fill)" stroke-width="3" stroke-linecap="round" fill="none"/>
+        <line x1="24" y1="30.5" x2="34" y2="18" stroke="var(--accent-fill)" stroke-width="2" stroke-linecap="round"/>
+        <circle cx="24" cy="30.5" r="3.6" fill="var(--accent-fill)"/>
+        <circle cx="24" cy="30.5" r="1.5" fill="var(--bg)"/>
+      </svg>
     </div>
-    <div class="eyebrow">
-      <div class="eyebrow-line"></div>
-      <span class="eyebrow-text" id="eyebrow-week">Ciclo 3 · 12 Semanas · OKR · Carregando...</span>
-    </div>
-    <h1>Construindo<br>o <em>Grana Certa.</em></h1>
-    <div class="cycle-meta">
-      <span class="cycle-dates" id="cycle-dates">05/07 – 26/09/2026</span>
-      <div class="cycle-progress">
-        <span class="cycle-progress-label" id="cycle-week-label">S01</span>
-        <div class="cycle-progress-track" id="cycle-progress-track" aria-hidden="true"></div>
-      </div>
-    </div>
-    <div class="objetivo-block">
-      <div class="obj-bar"></div>
-      <div>
-        <p class="obj-label">Objetivo do ciclo</p>
-        <p class="obj-text">Conseguir investidores para o Grana Certa: sair de 438 para 4.500 usuários ativos por semana (WAU), acumular R$3.000 em receita e reduzir o tempo médio de espera de 5,6 para 2,0 minutos.</p>
-      </div>
-    </div>
+    <div class="header-wordmark"><div class="w1">GRANA</div><div class="w2">CERTA</div></div>
+    <div class="header-divider"></div>
+    <div class="header-cycle" id="header-cycle">Ciclo 3 · Semana 1 de 12 · <em>faltam 84 dias</em></div>
+  </div>
+  <div class="header-right">
+    <div class="sync-pill"><div class="sync-dot" id="sync-dot"></div><span id="sync-label">Conectando</span></div>
+    <button class="btn-copy" id="btn-copy" type="button">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><rect x="8" y="8" width="12" height="12" rx="2" stroke="currentColor" stroke-width="2"/><path d="M4 16V6a2 2 0 0 1 2-2h10" stroke="currentColor" stroke-width="2"/></svg>
+      <span id="copy-label">Copiar resumo</span>
+    </button>
+    <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Alternar tema">
+      <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+      <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.8" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+    </button>
   </div>
 </header>
 
-<div class="container">
-
-  <div class="section-gap">
-    <div class="section-label">Key Results</div>
-    <div class="metas-grid">
-      <div class="meta-card">
-        <div class="meta-top-bar"></div>
-        <p class="meta-eyebrow">KR 01 · Usuários</p>
-        <div class="meta-value" id="cur-m1">—</div>
-        <p class="meta-desc">usuários ativos por semana (WAU) · meta 4.500<br>crescimento de uso real, não de vaidade</p>
-        <p class="meta-baseline">baseline <span>438</span></p>
-        <div class="prog-bg"><div class="prog-fill" id="bar-m1"></div></div>
-        <div class="prog-labels"><span class="prog-pct" id="pct-m1">—</span><span>4.500</span></div>
-      </div>
-      <div class="meta-card">
-        <div class="meta-top-bar"></div>
-        <p class="meta-eyebrow">KR 02 · Receita</p>
-        <div class="meta-value" id="cur-m2">—</div>
-        <p class="meta-desc">receita acumulada · meta R$3.000<br>apenas produtos digitais do app</p>
-        <p class="meta-baseline">baseline <span>R$0</span></p>
-        <div class="prog-bg"><div class="prog-fill" id="bar-m2"></div></div>
-        <div class="prog-labels"><span class="prog-pct" id="pct-m2">—</span><span>R$3.000</span></div>
-      </div>
-      <div class="meta-card">
-        <div class="meta-top-bar"></div>
-        <p class="meta-eyebrow">KR 03 · Tempo médio</p>
-        <div class="meta-value" id="cur-m3">—</div>
-        <p class="meta-desc">tempo médio de resposta · meta 2,0 min<br>quanto menor, melhor</p>
-        <p class="meta-baseline">baseline <span>5,6 min</span></p>
-        <div class="prog-bg"><div class="prog-fill" id="bar-m3"></div></div>
-        <div class="prog-labels"><span class="prog-pct" id="pct-m3">—</span><span>2,0 min</span></div>
-      </div>
-    </div>
+<div class="main">
+  <div class="obj-row">
+    <h1 class="obj-h1">Construindo o <em>Grana Certa.</em></h1>
+    <p class="obj-summary">438 → 4.500 WAU · R$0 → R$3.000 · 5,6 → 2,0 min de espera</p>
   </div>
 
-  <div style="margin-top:52px">
-    <div class="top-row">
-      <div class="section-label" style="margin-bottom:0;flex:1">Registro semanal</div>
-      <div style="display:flex;align-items:center;gap:12px">
-        <div class="sync-status">
-          <div class="sync-dot" id="sync-dot"></div>
-          <span id="sync-label">Conectando</span>
-        </div>
-        <button class="reset-btn" onclick="resetAll()">↺ Resetar</button>
-      </div>
-    </div>
-    <nav class="week-nav" id="week-nav" aria-label="Navegação por semana"></nav>
-    <div id="semanas-wrap">
-      <div class="loading-wrap">
-        <div class="loading-spinner"></div>
-        Carregando dados...
-      </div>
-    </div>
-  </div>
-
-  <footer class="container site-footer">
-    <img class="footer-mark" src="mark-only-dark.svg" alt="" aria-hidden="true">
-    <span class="footer-copy">Grana Certa · Ciclo 3 · OKR 12 semanas</span>
-  </footer>
-
+  <section class="mt-36" id="sec-hoje"></section>
+  <section id="sec-revenue"></section>
+  <section class="mt-40" id="sec-week"></section>
+  <section class="mt-40" id="sec-trend"></section>
+  <section class="mt-48" id="sec-history"></section>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -673,386 +358,523 @@ header        { animation: fadeUp 0.4s ease both; }
 function applyTheme(theme) {
   document.documentElement.setAttribute('data-theme', theme);
   localStorage.setItem('gc-theme', theme);
-  const logo = document.getElementById('brand-logo');
-  if (logo) logo.src = theme === 'light' ? 'logo-horizontal-light.svg' : 'logo-horizontal-dark.svg';
-  const btn = document.getElementById('theme-toggle');
-  if (btn) btn.setAttribute('aria-label', theme === 'light' ? 'Ativar modo escuro' : 'Ativar modo claro');
+  document.getElementById('theme-toggle').setAttribute('aria-label', theme === 'light' ? 'Ativar modo escuro' : 'Ativar modo claro');
 }
 function toggleTheme() {
-  const current = document.documentElement.getAttribute('data-theme');
-  applyTheme(current === 'light' ? 'dark' : 'light');
+  applyTheme(document.documentElement.getAttribute('data-theme') === 'light' ? 'dark' : 'light');
+  render();
 }
+document.getElementById('theme-toggle').onclick = toggleTheme;
 applyTheme(document.documentElement.getAttribute('data-theme'));
 
 // ─── CONFIG ───────────────────────────────────────────────
 const SUPABASE_URL = 'https://sbywtjxgkhqdeplymhdz.supabase.co';
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNieXd0anhna2hxZGVwbHltaGR6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc2ODc3NzUsImV4cCI6MjA5MzI2Mzc3NX0.9lGvokR-HdSdZAh-G0_70_0gwA6SKEtPwrvINmQmTnU';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNieXd0anhna2hxZGVwbHltaGR6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njc2ODc3NzUsImV4cCI6MjA5MzI2Mzc3NX0.9lGvokR-HdSdZAh-G0_70_0gwA6SKEtPwrvINmQmTnU';
 const TABLE = 'okr_ciclo';
-
-// Ciclo 3 do ano: começa domingo 05/07/2026 (semana começa no domingo)
+const CYCLE_N = 3;
+const CYCLE_DAYS = 84;
 const CICLO_START = new Date('2026-07-05T00:00:00-03:00');
-const CICLO_END   = new Date('2026-09-26T23:59:59-03:00');
+const BASELINE = { m1: 438, m2: 0, m3: 5.6 };
 
-// ─── SEMANA ATUAL ─────────────────────────────────────────
-function getCurrentWeek() {
-  const now = new Date();
-  const msPerWeek = 7 * 24 * 60 * 60 * 1000;
-  const diff = now - CICLO_START;
-  if (diff < 0) return 1;
-  const week = Math.floor(diff / msPerWeek) + 1;
-  return Math.min(Math.max(week, 1), 12);
-}
-
-// ─── SUPABASE API ─────────────────────────────────────────
-const headers = {
-  'apikey': SUPABASE_KEY,
-  'Authorization': 'Bearer ' + SUPABASE_KEY,
-  'Content-Type': 'application/json',
-  'Prefer': 'return=representation',
+const EXPECTED = {
+  m1: [0,530,650,790,960,1160,1410,1710,2080,2520,3060,3710,4500],
+  m2: [0,0,0,0,0,100,250,450,750,1150,1650,2250,3000],
+  m3: [0,5.3,5.0,4.7,4.4,4.1,3.8,3.5,3.2,2.9,2.6,2.3,2.0],
 };
 
+let DB = {};
+let revenueEntries = JSON.parse(localStorage.getItem('gc-revenue-entries') || '[]');
+let expanded = {};
+let trendPeriod = localStorage.getItem('gc-trend-period') || '14';
+let customStart = localStorage.getItem('gc-custom-start') || '';
+let customEnd = localStorage.getItem('gc-custom-end') || '';
+let newEntryDate = '';
+let newEntryValue = '';
+let lastSummary = null;
+let copyTimer;
+
+function getCurrentWeek() {
+  const diff = Date.now() - CICLO_START.getTime();
+  if (diff < 0) return 1;
+  return Math.min(Math.max(Math.floor(diff / (7 * 86400000)) + 1, 1), 12);
+}
+function getTodayDay() {
+  const diff = Math.floor((Date.now() - CICLO_START.getTime()) / 86400000) + 1;
+  return Math.min(Math.max(diff, 1), CYCLE_DAYS);
+}
+const CURRENT_WEEK = getCurrentWeek();
+const TODAY = getTodayDay();
+
+function weekOf(d) { return Math.ceil(d / 7); }
+function weekStartDay(w) { return (w - 1) * 7 + 1; }
+function weekEndDay(w) { return Math.min(w * 7, CYCLE_DAYS); }
+function dateForDay(d) { return new Date(CICLO_START.getTime() + (d - 1) * 86400000); }
+function fmtDateShort(dt) { return String(dt.getDate()).padStart(2,'0') + '/' + String(dt.getMonth()+1).padStart(2,'0'); }
+function isoForDay(d) {
+  const dt = dateForDay(d);
+  return dt.getFullYear() + '-' + String(dt.getMonth()+1).padStart(2,'0') + '-' + String(dt.getDate()).padStart(2,'0');
+}
+function dayFromISO(iso) {
+  const dt = new Date(iso + 'T12:00:00');
+  return Math.round((dt - CICLO_START) / 86400000) + 1;
+}
+function expectedAt(w) { return { m1: EXPECTED.m1[w], m2: EXPECTED.m2[w], m3: EXPECTED.m3[w] }; }
+
+function expectedAtDay(d) {
+  const w = weekOf(d);
+  const prev = w > 1 ? expectedAt(w - 1) : { m1: 438, m2: 0, m3: 5.6 };
+  const curr = expectedAt(w);
+  const frac = (d - weekStartDay(w) + 1) / 7;
+  return {
+    m1: prev.m1 + (curr.m1 - prev.m1) * frac,
+    m2: prev.m2 + (curr.m2 - prev.m2) * frac,
+    m3: prev.m3 + (curr.m3 - prev.m3) * frac,
+  };
+}
+
+function prevWeekValues(w) {
+  if (w <= 1) return { ...BASELINE };
+  const d = DB[w - 1];
+  return {
+    m1: d?.m1 ?? BASELINE.m1,
+    m2: d?.m2 ?? BASELINE.m2,
+    m3: d?.m3 ?? BASELINE.m3,
+  };
+}
+
+function actualAtDay(d) {
+  if (d > TODAY) return null;
+  const w = weekOf(d);
+  const row = DB[w];
+  if (!row || (row.m1 == null && row.m3 == null)) return null;
+  const prev = prevWeekValues(w);
+  const frac = (d - weekStartDay(w) + 1) / 7;
+  return {
+    m1: row.m1 != null ? prev.m1 + (row.m1 - prev.m1) * frac : null,
+    m2: row.m2 != null ? row.m2 : revenueUpToDay(d),
+    m3: row.m3 != null ? prev.m3 + (row.m3 - prev.m3) * frac : null,
+  };
+}
+
+function latestMetric(key, upToWeek) {
+  for (let s = upToWeek; s >= 1; s--) {
+    if (DB[s]?.[key] != null) return DB[s][key];
+  }
+  return BASELINE[key];
+}
+
+function revenueUpToDay(d) {
+  return revenueEntries.filter(e => e.day <= d).reduce((s, e) => s + e.value, 0);
+}
+function revenueOnDay(d) {
+  return revenueEntries.filter(e => e.day === d).reduce((s, e) => s + e.value, 0);
+}
+
+function tierOf(pace) { return pace >= 95 ? 'success' : pace >= 70 ? 'warning' : 'danger'; }
+function fmtInt(n) { return Math.round(n).toLocaleString('pt-BR'); }
+function fmtMoney(n) { return 'R$' + Math.round(n).toLocaleString('pt-BR'); }
+function fmtMin(n) { return Number(n).toFixed(2) + ' min'; }
+function badgeStyle(tier) {
+  if (tier === 'success') return { bg: 'var(--ok-bg)', color: 'var(--ok)', label: '● BATEU' };
+  if (tier === 'danger') return { bg: 'var(--danger-bg)', color: 'var(--danger)', label: '● NÃO BATEU' };
+  return { bg: 'var(--overlay)', color: 'var(--muted)', label: '○ AGUARDANDO' };
+}
+function pctColor(pace) {
+  const tr = tierOf(pace);
+  return tr === 'success' ? 'var(--ok)' : tr === 'warning' ? 'var(--risk)' : 'var(--danger)';
+}
+
+function linreg(points) {
+  const n = points.length;
+  if (n < 2) return { slope: 0, intercept: points[0]?.y ?? 0 };
+  let sx=0, sy=0, sxy=0, sxx=0;
+  points.forEach(p => { sx+=p.x; sy+=p.y; sxy+=p.x*p.y; sxx+=p.x*p.x; });
+  const denom = (n * sxx - sx * sx) || 1;
+  return { slope: (n * sxy - sx * sy) / denom, intercept: (sy - (n * sxy - sx * sy) / denom * sx) / n };
+}
+
+function pathFromPoints(pts, xmin, xmax, ymin, ymax) {
+  const W=300, H=130, PAD=6;
+  const sx = x => PAD + ((x - xmin) / (xmax - xmin || 1)) * (W - PAD * 2);
+  const sy = y => (H - PAD) - ((y - ymin) / (ymax - ymin || 1)) * (H - PAD * 2);
+  return pts.map((p,i) => (i===0?'M':'L') + sx(p.x).toFixed(1) + ' ' + sy(p.y).toFixed(1)).join(' ');
+}
+
+// ─── SUPABASE ─────────────────────────────────────────────
+const headers = {
+  apikey: SUPABASE_KEY,
+  Authorization: 'Bearer ' + SUPABASE_KEY,
+  'Content-Type': 'application/json',
+  Prefer: 'return=representation',
+};
 async function dbLoad() {
   const r = await fetch(`${SUPABASE_URL}/rest/v1/${TABLE}?select=*&order=semana.asc`, { headers });
-  if (!r.ok) throw new Error('Erro ao carregar: ' + r.status);
-  return await r.json();
+  if (!r.ok) throw new Error('load');
+  return r.json();
 }
-
 async function dbSave(row) {
-  // upsert by primary key (semana)
   const r = await fetch(`${SUPABASE_URL}/rest/v1/${TABLE}`, {
     method: 'POST',
-    headers: { ...headers, 'Prefer': 'resolution=merge-duplicates,return=representation' },
+    headers: { ...headers, Prefer: 'resolution=merge-duplicates,return=representation' },
     body: JSON.stringify({ ...row, updated_at: new Date().toISOString() }),
   });
-  if (!r.ok) throw new Error('Erro ao salvar: ' + r.status);
-  return await r.json();
+  if (!r.ok) throw new Error('save');
+  return r.json();
 }
-
-async function dbDelete() {
-  const r = await fetch(`${SUPABASE_URL}/rest/v1/${TABLE}?semana=gte.1`, {
-    method: 'DELETE',
-    headers,
-  });
-  if (!r.ok) throw new Error('Erro ao deletar: ' + r.status);
-}
-
-// ─── STATE ────────────────────────────────────────────────
-let DB = {}; // semana -> row
-const CURRENT_WEEK = getCurrentWeek();
-
-// ─── SYNC UI ──────────────────────────────────────────────
 function setSyncState(state, label) {
-  const dot = document.getElementById('sync-dot');
-  const lbl = document.getElementById('sync-label');
-  dot.className = 'sync-dot ' + state;
-  lbl.textContent = label;
+  document.getElementById('sync-dot').className = 'sync-dot ' + state;
+  document.getElementById('sync-label').textContent = label;
 }
-
-// ─── TOAST ────────────────────────────────────────────────
 let toastTimer;
-function showToast(msg, isError) {
+function showToast(msg, err) {
   const el = document.getElementById('toast');
   el.textContent = msg;
-  el.className = 'toast show' + (isError ? ' error' : '');
+  el.className = 'toast show' + (err ? ' error' : '');
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => el.className = 'toast', 2500);
 }
 
-// ─── METAS ────────────────────────────────────────────────
-// Dicas — diretas e táticas, ligadas às metas de WAU / receita / tempo médio
-const DICAS = [
-  "<strong>Semana 1 — Baseline conhecida.</strong> Tempo médio atual: 5,6 min, 438 WAU. Corte a etapa mais lenta do fluxo — meta da semana: ≤ 5,3 min.",
-  "<strong>Semana 2 — Corte de atrito.</strong> Identifique o passo mais lento do fluxo principal e remova uma etapa. Meta da semana: tempo médio ≤ 5,0 min.",
-  "<strong>Semana 3 — Retenção.</strong> Meça quantos usuários da semana 1 voltaram a usar o app. Se for baixo, o problema é produto — não aquisição.",
-  "<strong>Semana 4 — Checkpoint.</strong> Compare o WAU real contra os 945 esperados. Se estiver abaixo, corte o que não gera uso recorrente.",
-  "<strong>Semana 5 — Primeira cobrança.</strong> Ative o ponto de pagamento. Meta da semana: R$100 em receita — não R$0.",
-  "<strong>Semana 6 — Meio do ciclo.</strong> Receita acumulada esperada: R$250. Se não bateu, o preço ou a oferta está errada — ajuste agora, não espere.",
-  "<strong>Semana 7 — Funil de conversão.</strong> Meça a taxa de usuário grátis → pagante. É a métrica que decide se o modelo escala.",
-  "<strong>Semana 8 — Velocidade.</strong> Meta: tempo médio de 3,2 min. Cada segundo cortado aqui aumenta retenção mais do que qualquer feature nova.",
-  "<strong>Semana 9 — Escala de aquisição.</strong> WAU esperado: 2.490. Dobre o canal que já traz o usuário com menor custo.",
-  "<strong>Semana 10 — Receita composta.</strong> R$1.650 acumulado esperado. Revise o churn de pagantes antes de buscar novos usuários.",
-  "<strong>Semana 11 — Reta final.</strong> Compare os 3 KRs contra a meta. Ajuste só o que estiver mais atrasado — não tudo ao mesmo tempo.",
-  "<strong>Semana 12 — Fechamento.</strong> Metas finais: 4.500 WAU, R$3.000 de receita, 2,0 min de tempo médio. Essa é a tração que vai para o pitch aos investidores — documente com números reais.",
-];
+function saveRevenueEntries() {
+  localStorage.setItem('gc-revenue-entries', JSON.stringify(revenueEntries));
+}
 
-// Metas acumuladas por semana — curva customizada a partir do atual (438 WAU / R$0 / 5,6 min)
-// m1: WAU alvo · m2: receita acumulada (R$) · m3: tempo médio alvo (min, menor é melhor)
-const EXPECTED = {
-  m1: [0,  530,  650,  790,  960, 1160, 1410, 1710, 2080, 2520, 3060, 3710, 4500],
-  m2: [0,    0,    0,    0,    0,  100,  250,  450,  750, 1150, 1650, 2250, 3000],
-  m3: [0,  5.3,  5.0,  4.7,  4.4,  4.1,  3.8,  3.5,  3.2,  2.9,  2.6,  2.3,  2.0],
-};
+function buildSeries(key, cumMode) {
+  const pts = [{ x: 1, y: BASELINE[key] }];
+  for (let w = 1; w <= CURRENT_WEEK; w++) {
+    const endDay = Math.min(weekEndDay(w), TODAY);
+    let val = DB[w]?.[key];
+    if (key === 'm2') val = revenueUpToDay(endDay);
+    if (val != null) pts.push({ x: endDay, y: val });
+  }
+  return pts.filter((p,i,a) => i === 0 || p.y != null);
+}
 
-function expectedAt(s) {
+function buildChart(label, key, cumMode, hasData) {
+  if (!hasData) return { label, empty: true };
+  let periodStartDay, periodEndDay = TODAY;
+  if (trendPeriod === '7') periodStartDay = Math.max(1, TODAY - 6);
+  else if (trendPeriod === '14') periodStartDay = Math.max(1, TODAY - 13);
+  else if (trendPeriod === 'cycle') periodStartDay = 1;
+  else {
+    periodStartDay = Math.max(1, dayFromISO(customStart) || 1);
+    periodEndDay = Math.min(TODAY, dayFromISO(customEnd) || TODAY);
+  }
+  const realFn = d => {
+    if (key === 'm2') return revenueUpToDay(d);
+    const a = actualAtDay(d);
+    if (a && a[key] != null) return a[key];
+    return latestMetric(key, weekOf(d));
+  };
+  const expFn = d => expectedAtDay(d)[key];
+  const realPts = [];
+  for (let d = periodStartDay; d <= periodEndDay; d++) realPts.push({ x: d, y: realFn(d) });
+  const metaPts = [];
+  for (let d = 1; d <= CYCLE_DAYS; d += 4) metaPts.push({ x: d, y: expFn(d) });
+  const reg = linreg(realPts.length >= 2 ? realPts : [{ x: 1, y: realFn(1) }, { x: TODAY, y: realFn(TODAY) }]);
+  const projPts = [{ x: periodStartDay, y: reg.slope * periodStartDay + reg.intercept }, { x: CYCLE_DAYS, y: reg.slope * CYCLE_DAYS + reg.intercept }];
+  const allY = [...realPts.map(p=>p.y), ...metaPts.map(p=>p.y), ...projPts.map(p=>p.y)];
+  const ymin = Math.min(...allY), ymax = Math.max(...allY);
+  const pad = (ymax - ymin) * 0.1 || 1;
   return {
-    m1: EXPECTED.m1[s],
-    m2: EXPECTED.m2[s],
-    m3: EXPECTED.m3[s],
+    label, empty: false,
+    realPath: pathFromPoints(realPts, 1, CYCLE_DAYS, ymin - pad, ymax + pad),
+    metaPath: pathFromPoints(metaPts, 1, CYCLE_DAYS, ymin - pad, ymax + pad),
+    projPath: pathFromPoints(projPts, 1, CYCLE_DAYS, ymin - pad, ymax + pad),
   };
 }
 
-function statusFor(s, d) {
-  if (s > CURRENT_WEEK) return 'futura';
-  if (!d || (d.m1 == null && d.m2 == null && d.m3 == null)) return 'vazio';
-  const exp = expectedAt(s);
-  let ok = 0, tot = 0;
-  if (d.m1 != null) { tot++; if (d.m1 >= exp.m1 * 0.88) ok++; }
-  if (d.m2 != null) { tot++; if (d.m2 >= exp.m2 * 0.88) ok++; }
-  if (d.m3 != null) { tot++; if (d.m3 <= exp.m3 * 1.12) ok++; } // tempo médio: menor é melhor
-  const r = ok / tot;
-  if (r >= 0.9) return 'ok';
-  if (r >= 0.5) return 'risco';
-  return 'atras';
+function copySummary() {
+  if (!lastSummary) return;
+  const s = lastSummary;
+  const text = `GRANA CERTA — ${s.dateLabel}\nUsuários   | meta dia: +${Math.round(s.usersMetaDia)} | real dia: ${s.usersRealDia >= 0 ? '+' : ''}${Math.round(s.usersRealDia)} | meta semana: ${Math.round(s.usersMetaSemana)} | real semana: ${Math.round(s.usersRealSemana)}\nReceita    | meta dia: R$${Math.round(s.revMetaDia)} | real dia: R$${Math.round(s.revRealDia)} | meta semana: R$${Math.round(s.revMetaSemana)} | real semana: R$${Math.round(s.revRealSemana)}\nTempo medio| meta dia: ${s.tempoMetaDia.toFixed(2)}min | real dia: ${s.tempoRealDia.toFixed(2)}min | meta semana: ${s.tempoMetaSemana.toFixed(2)}min | real semana: ${s.tempoRealSemana.toFixed(2)}min`;
+  navigator.clipboard?.writeText(text).catch(() => {});
+  const btn = document.getElementById('btn-copy');
+  document.getElementById('copy-label').textContent = 'Copiado!';
+  btn.classList.add('is-copied');
+  clearTimeout(copyTimer);
+  copyTimer = setTimeout(() => {
+    document.getElementById('copy-label').textContent = 'Copiar resumo';
+    btn.classList.remove('is-copied');
+  }, 1800);
 }
+document.getElementById('btn-copy').onclick = copySummary;
 
-const S_LABEL = { ok:'No ritmo', risco:'Atenção', atras:'Atrás', vazio:'—', atual:'Atual', futura:'Futura' };
-const S_CLASS  = { ok:'s-ok', risco:'s-risco', atras:'s-atras', vazio:'s-vazio', atual:'s-atual', futura:'s-futura' };
-
-function fmtNum(v, prefix) {
-  if (v == null) return '—';
-  return (prefix||'') + Number(v).toLocaleString('pt-BR');
-}
-
-function fmtMin(v) {
-  if (v == null) return '—';
-  return Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + ' min';
-}
-
-function fmtCycleDate(d) {
-  return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
-}
-
-function updateCycleMeta() {
-  const dates = document.getElementById('cycle-dates');
-  if (dates) dates.textContent = `${fmtCycleDate(CICLO_START).slice(0, 5)} – ${fmtCycleDate(CICLO_END)}`;
-
-  const label = document.getElementById('cycle-week-label');
-  if (label) label.textContent = `S${String(CURRENT_WEEK).padStart(2, '0')}`;
-
-  const track = document.getElementById('cycle-progress-track');
-  if (track && !track.children.length) {
-    for (let s = 1; s <= 12; s++) {
-      const seg = document.createElement('div');
-      seg.className = 'cycle-seg'
-        + (s < CURRENT_WEEK ? ' is-done' : '')
-        + (s === CURRENT_WEEK ? ' is-current' : '');
-      seg.title = `Semana ${s}`;
-      track.appendChild(seg);
-    }
-  }
-}
-
-function buildWeekNav() {
-  const nav = document.getElementById('week-nav');
-  if (!nav) return;
-  nav.innerHTML = '';
-  for (let s = 1; s <= 12; s++) {
-    const hasData = DB[s] && (DB[s].m1 != null || DB[s].m2 != null || DB[s].m3 != null);
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'week-pill'
-      + (s === CURRENT_WEEK ? ' is-current' : '')
-      + (s < CURRENT_WEEK && hasData ? ' is-done' : '');
-    btn.textContent = `S${String(s).padStart(2, '0')}`;
-    btn.onclick = () => jumpToWeek(s);
-    nav.appendChild(btn);
-  }
-}
-
-function jumpToWeek(s) {
-  const el = document.getElementById('blk-' + s);
-  if (!el) return;
-  el.classList.add('is-open');
-  el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-}
-
-// ─── OVERVIEW ────────────────────────────────────────────
-// Baseline atual do ciclo (antes de qualquer registro semanal): 438 WAU, R$0, 5,6 min
-function updateOverview() {
-  let m1=438, m2=0, m3=5.6, _1=false, _2=false, _3=false;
-  for (let s=12; s>=1; s--) {
-    const d = DB[s];
-    if (!d) continue;
-    if (d.m1!=null && !_1) { m1=d.m1; _1=true; }
-    if (d.m2!=null && !_2) { m2=d.m2; _2=true; }
-    if (d.m3!=null && !_3) { m3=d.m3; _3=true; }
-  }
-  const p1 = Math.min(100, (m1/4500)*100);
-  const p2 = Math.min(100, (m2/3000)*100);
-  const p3 = Math.min(100, Math.max(0, ((5.6-m3)/(5.6-2.0))*100));
-
-  document.getElementById('cur-m1').textContent = m1.toLocaleString('pt-BR');
-  document.getElementById('cur-m2').textContent = 'R$' + m2.toLocaleString('pt-BR');
-  document.getElementById('cur-m3').textContent = fmtMin(m3);
-  document.getElementById('bar-m1').style.width = p1+'%';
-  document.getElementById('bar-m2').style.width = p2+'%';
-  document.getElementById('bar-m3').style.width = p3+'%';
-  document.getElementById('pct-m1').textContent = Math.round(p1)+'%';
-  document.getElementById('pct-m2').textContent = Math.round(p2)+'%';
-  document.getElementById('pct-m3').textContent = Math.round(p3)+'%';
-}
-
-// ─── BUILD SEMANAS ────────────────────────────────────────
-function build() {
-  const wrap = document.getElementById('semanas-wrap');
-  wrap.innerHTML = '';
-
-  // Atualiza eyebrow com semana atual
-  document.getElementById('eyebrow-week').textContent =
-    `Ciclo 3 · 12 Semanas · OKR · Semana ${CURRENT_WEEK} de 12`;
-
-  for (let s=1; s<=12; s++) {
-    const d = DB[s] || {};
-    const exp = expectedAt(s);
-    const isCurrent = s === CURRENT_WEEK;
-    const isFuture  = s > CURRENT_WEEK;
-    const rawStatus = statusFor(s, DB[s]);
-    const status    = isCurrent ? 'atual' : rawStatus;
-
-    const el = document.createElement('div');
-    el.className = 'semana-block'
-      + (isCurrent ? ' is-active' : '')
-      + (isCurrent ? ' is-open' : '')
-      + (isFuture  ? ' is-future'  : '');
-    el.id = 'blk-'+s;
-
-    // Datas da semana
-    const wStart = new Date(CICLO_START.getTime() + (s-1)*7*24*3600*1000);
-    const wEnd   = new Date(wStart.getTime() + 6*24*3600*1000);
-    const fmtDate = d => d.toLocaleDateString('pt-BR', {day:'2-digit', month:'2-digit'});
-    const dateRange = `${fmtDate(wStart)} – ${fmtDate(wEnd)}`;
-
-    el.innerHTML = `
-      <div class="semana-header" onclick="toggle(${s})">
-        <div class="sem-left">
-          <span class="sem-num">S${String(s).padStart(2,'0')}</span>
-          <span style="font-size:11px;color:var(--muted);display:none" class="sem-date">${dateRange}</span>
-          <div class="sem-vals">
-            <div class="sem-val-item"><div class="sem-dot"></div><span class="sem-val">${fmtNum(d.m1!=null?d.m1:null)}</span></div>
-            <div class="sem-val-item"><div class="sem-dot"></div><span class="sem-val">${d.m2!=null?'R$'+Number(d.m2).toLocaleString('pt-BR'):'—'}</span></div>
-            <div class="sem-val-item"><div class="sem-dot"></div><span class="sem-val">${fmtMin(d.m3!=null?d.m3:null)}</span></div>
-          </div>
-        </div>
-        <div class="sem-right">
-          <span style="font-size:10px;color:var(--muted);letter-spacing:1px">${dateRange}</span>
-          <span class="status-pill ${S_CLASS[status]}">${S_LABEL[status]}</span>
-          <span class="chevron">▼</span>
-        </div>
-      </div>
-      <div class="semana-body">
-        <div class="expected-strip">
-          <span class="exp-head">Esperado S${s}</span>
-          <div class="exp-item"><span class="exp-sub">Usuários (WAU)</span><span class="exp-val">${exp.m1.toLocaleString('pt-BR')}</span></div>
-          <div class="exp-item"><span class="exp-sub">Receita</span><span class="exp-val">R$${exp.m2.toLocaleString('pt-BR')}</span></div>
-          <div class="exp-item"><span class="exp-sub">Tempo médio</span><span class="exp-val">${fmtMin(exp.m3)}</span></div>
-        </div>
-        <div class="inputs-grid">
-          <div class="field">
-            <label class="field-label">KR 01 · Usuários (WAU)</label>
-            <p class="field-sub">Total de usuários ativos na semana</p>
-            <input type="number" id="f${s}-m1" placeholder="ex: 620" value="${d.m1!=null?d.m1:''}">
-          </div>
-          <div class="field">
-            <label class="field-label">KR 02 · Receita (R$)</label>
-            <p class="field-sub">Total acumulado no fim da semana</p>
-            <input type="number" id="f${s}-m2" placeholder="ex: 250" value="${d.m2!=null?d.m2:''}">
-          </div>
-          <div class="field">
-            <label class="field-label">KR 03 · Tempo médio (min)</label>
-            <p class="field-sub">Média da semana, em minutos — menor é melhor</p>
-            <input type="number" step="0.1" min="0" id="f${s}-m3" placeholder="ex: 4.5" value="${d.m3!=null?d.m3:''}">
-          </div>
-        </div>
-        <div class="field">
-          <label class="field-label" style="color:var(--muted)">Notas da semana</label>
-          <textarea id="f${s}-nota" placeholder="O que funcionou? O que travou? Aprendizados...">${d.nota||''}</textarea>
-        </div>
-        <div class="dica">${DICAS[s-1]}</div>
-        <button class="btn-save" id="btn-${s}" onclick="saveWeek(${s})">Salvar semana ${s}</button>
-      </div>
-    `;
-    wrap.appendChild(el);
-  }
-
-  updateOverview();
-  buildWeekNav();
-}
-
-// ─── TOGGLE ───────────────────────────────────────────────
-function toggle(s) {
-  document.getElementById('blk-'+s).classList.toggle('is-open');
-}
-
-// ─── SAVE ─────────────────────────────────────────────────
-async function saveWeek(s) {
-  const btn = document.getElementById('btn-'+s);
-  btn.disabled = true;
-  btn.textContent = 'Salvando...';
+async function saveWeek(w) {
+  const btn = document.getElementById('save-' + w);
+  if (btn) { btn.disabled = true; btn.textContent = 'Salvando...'; }
   setSyncState('syncing', 'Salvando');
-
-  const m1   = document.getElementById('f'+s+'-m1').value;
-  const m2   = document.getElementById('f'+s+'-m2').value;
-  const m3   = document.getElementById('f'+s+'-m3').value;
-  const nota = document.getElementById('f'+s+'-nota').value;
-
+  const m1 = document.getElementById('f' + w + '-m1')?.value;
+  const m2 = document.getElementById('f' + w + '-m2')?.value;
+  const m3 = document.getElementById('f' + w + '-m3')?.value;
+  const nota = document.getElementById('f' + w + '-nota')?.value;
   const row = {
-    semana: s,
-    m1:   m1   !== '' ? Number(m1)   : null,
-    m2:   m2   !== '' ? Number(m2)   : null,
-    m3:   m3   !== '' ? Number(m3)   : null,
+    semana: w,
+    m1: m1 !== '' ? Number(m1) : null,
+    m2: m2 !== '' ? Number(m2) : null,
+    m3: m3 !== '' ? Number(m3) : null,
     nota: nota || null,
   };
-
   try {
     await dbSave(row);
-    DB[s] = row;
+    DB[w] = row;
     setSyncState('synced', 'Sincronizado');
-    showToast('Semana ' + s + ' salva ✓');
-    build();
-    requestAnimationFrame(() => {
-      const el = document.getElementById('blk-'+s);
-      if (el && !el.classList.contains('is-open')) el.classList.add('is-open');
+    showToast('Semana ' + w + ' salva');
+    render();
+  } catch(e) {
+    setSyncState('error', 'Erro');
+    showToast('Erro ao salvar', true);
+    if (btn) { btn.disabled = false; btn.textContent = 'Salvar semana ' + w; }
+  }
+}
+
+function toggleWeek(w) {
+  expanded[w] = !expanded[w];
+  renderHistory();
+}
+
+function addRevenueEntry() {
+  const val = parseFloat(String(newEntryValue).replace(',', '.'));
+  if (isNaN(val) || !newEntryDate) return;
+  const day = dayFromISO(newEntryDate);
+  if (day < 1 || day > CYCLE_DAYS) return;
+  revenueEntries = revenueEntries.filter(e => e.day !== day).concat([{ day, iso: newEntryDate, value: val }]).sort((a,b) => a.day - b.day);
+  saveRevenueEntries();
+  newEntryValue = '';
+  render();
+}
+
+function renderHoje(data) {
+  const cards = data.todayCards.map(kr => `
+    <div class="card">
+      <div class="card-head">
+        <div class="card-label">${kr.label}</div>
+        <div class="badge" style="background:${kr.badgeBg};color:${kr.badgeColor}">${kr.badgeLabel}</div>
+      </div>
+      <div class="metric-pair">
+        <div class="metric-box"><div class="metric-key">META HOJE</div><div class="metric-val secondary">${kr.metaLabel}</div></div>
+        <div class="metric-box"><div class="metric-key">REAL HOJE</div><div class="metric-val" style="color:${kr.badgeColor}">${kr.realLabel}</div></div>
+      </div>
+    </div>`).join('');
+  document.getElementById('sec-hoje').innerHTML = `
+    <div class="section-head accent"><div class="section-dash"></div><div class="section-title accent">Hoje · ${data.todayLabel}</div></div>
+    <div class="section-rule"></div>
+    <div class="grid-3">${cards}</div>`;
+}
+
+function renderRevenue(data) {
+  const chips = data.recentEntries.map(e => `<div class="revenue-chip">${e.dateLabel} · ${e.valueLabel}</div>`).join('');
+  document.getElementById('sec-revenue').innerHTML = `
+    <div class="revenue-bar">
+      <label>Lançar receita</label>
+      <input type="date" id="rev-date" value="${newEntryDate}">
+      <input type="number" id="rev-value" placeholder="valor em R$" value="${newEntryValue}">
+      <button class="btn-save" type="button" id="rev-add">Adicionar</button>
+      <div class="revenue-chips">${chips}</div>
+    </div>`;
+  document.getElementById('rev-date').onchange = e => { newEntryDate = e.target.value; };
+  document.getElementById('rev-value').oninput = e => { newEntryValue = e.target.value; };
+  document.getElementById('rev-add').onclick = addRevenueEntry;
+}
+
+function renderWeek(data) {
+  const cards = data.weekCards.map(kr => `
+    <div class="card">
+      <div class="card-label" style="margin-bottom:14px">${kr.label}</div>
+      <div class="week-grid">
+        <div><div class="metric-key">META SEMANA</div><div class="metric-val" style="color:var(--text-2)">${kr.metaLabel}</div></div>
+        <div><div class="metric-key">REAL SEMANA</div><div class="metric-val">${kr.realLabel}</div></div>
+        <div><div class="metric-key">FALTA</div><div class="metric-val" style="color:var(--text-2)">${kr.faltaLabel}</div></div>
+        <div><div class="metric-key">% ANDADO</div><div class="metric-val" style="color:${kr.pctColor}">${kr.pctLabel}</div></div>
+      </div>
+    </div>`).join('');
+  document.getElementById('sec-week').innerHTML = `
+    <div class="section-title muted" style="margin-bottom:4px">Semana atual · S${String(CURRENT_WEEK).padStart(2,'0')}</div>
+    <div class="section-rule"></div>
+    <div class="grid-3">${cards}</div>`;
+}
+
+function renderTrend(data) {
+  const pills = data.periodOptions.map(p => `<button class="period-pill${p.active ? ' is-active' : ''}" data-period="${p.key}">${p.label}</button>`).join('');
+  const customDates = trendPeriod === 'custom' ? `<span style="color:var(--muted);font-size:11px">–</span><input type="date" id="custom-start" value="${customStart}"><span style="color:var(--muted);font-size:11px">–</span><input type="date" id="custom-end" value="${customEnd}">` : '';
+  const charts = data.trendCharts.map(ch => {
+    if (ch.empty) return `<div class="card chart-card"><div class="chart-head"><div class="card-label">${ch.label}</div></div><div class="chart-empty">sem dados suficientes<br>aguardando 1º lançamento</div></div>`;
+    return `<div class="card chart-card"><div class="chart-head"><div class="card-label">${ch.label}</div>
+      <div class="chart-legend"><span><i style="background:var(--text)"></i>real</span><span><i style="background:var(--muted)"></i>meta</span><span><i style="background:var(--accent-fill)"></i>proj.</span></div></div>
+      <svg viewBox="0 0 300 130" width="100%" height="130"><path d="${ch.metaPath}" fill="none" stroke="var(--muted)" stroke-width="1.5" stroke-dasharray="4 3"/><path d="${ch.projPath}" fill="none" stroke="var(--accent-fill)" stroke-width="1.5" stroke-dasharray="2 3"/><path d="${ch.realPath}" fill="none" stroke="var(--text)" stroke-width="2"/></svg></div>`;
+  }).join('');
+  document.getElementById('sec-trend').innerHTML = `
+    <div class="trend-head"><div class="section-title muted">Tendência</div>
+      <div class="period-pills">${pills}<span class="period-dates">${customDates}</span></div></div>
+    <div class="section-rule"></div><div class="grid-3">${charts}</div>`;
+  document.querySelectorAll('.period-pill').forEach(btn => {
+    btn.onclick = () => { trendPeriod = btn.dataset.period; localStorage.setItem('gc-trend-period', trendPeriod); renderTrend(computeData()); };
+  });
+  const cs = document.getElementById('custom-start'), ce = document.getElementById('custom-end');
+  if (cs) cs.onchange = e => { customStart = e.target.value; localStorage.setItem('gc-custom-start', customStart); trendPeriod = 'custom'; renderTrend(computeData()); };
+  if (ce) ce.onchange = e => { customEnd = e.target.value; localStorage.setItem('gc-custom-end', customEnd); trendPeriod = 'custom'; renderTrend(computeData()); };
+}
+
+function renderHistory(data) {
+  const weeks = data.weeks.map(wk => {
+    const open = expanded[wk.n] ? ' is-open' : '';
+    return `<div class="week-row${wk.isCurrent ? ' is-current' : ''}${wk.isFuture ? ' is-future' : ''}${open}" id="wk-${wk.n}">
+      <div class="week-row-head" onclick="toggleWeek(${wk.n})">
+        <div style="display:flex;align-items:center;gap:16px">
+          <div class="week-num">S${String(wk.n).padStart(2,'0')}</div>
+          <div class="week-dots"><i style="background:${wk.dotUsers}"></i><i style="background:${wk.dotRevenue}"></i><i style="background:${wk.dotTempo}"></i></div>
+        </div>
+        <div class="week-meta">
+          <div class="week-dates">${wk.dateRange}</div>
+          <div class="status-chip" style="background:${wk.statusBg};color:${wk.statusColor}">${wk.statusLabel}</div>
+          <div class="week-chevron">▾</div>
+        </div>
+      </div>
+      <div class="week-body">
+        <div class="week-values">
+          <div class="week-field"><label>Usuários (WAU)</label><input type="number" id="f${wk.n}-m1" value="${wk.m1Val}" placeholder="—"></div>
+          <div class="week-field"><label>Receita acumulada (R$)</label><input type="number" id="f${wk.n}-m2" value="${wk.m2Val}" placeholder="—"></div>
+          <div class="week-field"><label>Tempo médio (min)</label><input type="number" step="0.1" id="f${wk.n}-m3" value="${wk.m3Val}" placeholder="—"></div>
+        </div>
+        <div class="week-field"><label>Notas da semana</label><textarea id="f${wk.n}-nota" placeholder="O que funcionou? O que travou? Aprendizados...">${wk.notaVal}</textarea></div>
+        <button class="btn-save" type="button" id="save-${wk.n}" onclick="saveWeek(${wk.n})">Salvar semana ${wk.n}</button>
+      </div>
+    </div>`;
+  }).join('');
+  document.getElementById('sec-history').innerHTML = `
+    <div class="section-title muted" style="margin-bottom:4px">Registro semanal · histórico</div>
+    <div class="section-rule"></div>${weeks}`;
+}
+
+function computeData() {
+  const w = CURRENT_WEEK;
+  const dayOfWeek = ((TODAY - 1) % 7) + 1;
+  const remainInclWeek = 7 - dayOfWeek + 1;
+  const remainInclCycle = CYCLE_DAYS - TODAY + 1;
+  const hasEntries = revenueEntries.length > 0;
+
+  const usersToday = actualAtDay(TODAY)?.m1 ?? latestMetric('m1', w);
+  const usersYesterday = actualAtDay(TODAY - 1)?.m1 ?? latestMetric('m1', Math.max(1, w - 1));
+  const tempoToday = actualAtDay(TODAY)?.m3 ?? latestMetric('m3', w);
+  const revenueCum = revenueUpToDay(TODAY);
+  const revenueToday = revenueOnDay(TODAY);
+  const weekRevFromDb = DB[w]?.m2;
+  const revRealSemana = weekRevFromDb != null ? weekRevFromDb : revenueCum;
+
+  const usersMetaDia = Math.max(0, (expectedAt(w).m1 - usersToday) / remainInclWeek);
+  const usersRealDia = usersToday - usersYesterday;
+  const usersBadge = usersRealDia >= usersMetaDia ? 'success' : 'danger';
+
+  const revMetaDia = hasEntries || weekRevFromDb != null ? Math.max(0, (3000 - revRealSemana) / remainInclCycle) : 0;
+  const revBadge = !hasEntries && weekRevFromDb == null ? 'neutral' : (revenueToday >= revMetaDia ? 'success' : 'danger');
+
+  const tempoImprovementNeeded = (tempoToday - 2.0) / remainInclCycle;
+  const tempoMetaDia = tempoToday - tempoImprovementNeeded;
+  const tempoBadge = tempoToday <= tempoMetaDia ? 'success' : 'danger';
+
+  const bU = badgeStyle(usersBadge), bR = badgeStyle(revBadge), bT = badgeStyle(tempoBadge);
+  const todayCards = [
+    { label: 'Usuários (WAU)', metaLabel: '+' + Math.round(usersMetaDia), realLabel: (usersRealDia >= 0 ? '+' : '') + Math.round(usersRealDia), badgeBg: bU.bg, badgeColor: bU.color, badgeLabel: bU.label },
+    { label: 'Receita', metaLabel: hasEntries || weekRevFromDb != null ? fmtMoney(revMetaDia) : '—', realLabel: hasEntries ? fmtMoney(revenueToday) : (weekRevFromDb != null ? fmtMoney(revenueToday) : '—'), badgeBg: bR.bg, badgeColor: bR.color, badgeLabel: bR.label },
+    { label: 'Tempo médio', metaLabel: fmtMin(tempoMetaDia), realLabel: fmtMin(tempoToday), badgeBg: bT.bg, badgeColor: bT.color, badgeLabel: bT.label },
+  ];
+
+  const usersMetaSemana = expectedAt(w).m1;
+  const usersRealSemana = usersToday;
+  const revMetaSemana = expectedAt(w).m2;
+  const tempoMetaSemana = expectedAt(w).m3;
+  const tempoRealSemana = tempoToday;
+  const usersPct = (usersRealSemana / usersMetaSemana) * 100;
+  const revPct = revMetaSemana > 0 ? (revRealSemana / revMetaSemana) * 100 : 0;
+  const tempoPct = (tempoMetaSemana / tempoRealSemana) * 100;
+
+  const weekCards = [
+    { label: 'Usuários (WAU)', metaLabel: fmtInt(usersMetaSemana), realLabel: fmtInt(usersRealSemana), faltaLabel: fmtInt(Math.max(0, usersMetaSemana - usersRealSemana)), pctLabel: Math.round(usersPct) + '%', pctColor: pctColor(usersPct) },
+    { label: 'Receita', metaLabel: fmtMoney(revMetaSemana), realLabel: fmtMoney(revRealSemana), faltaLabel: fmtMoney(Math.max(0, revMetaSemana - revRealSemana)), pctLabel: Math.round(revPct) + '%', pctColor: hasEntries || weekRevFromDb != null ? pctColor(revPct) : 'var(--muted)' },
+    { label: 'Tempo médio', metaLabel: fmtMin(tempoMetaSemana), realLabel: fmtMin(tempoRealSemana), faltaLabel: fmtMin(Math.max(0, tempoRealSemana - tempoMetaSemana)), pctLabel: Math.round(tempoPct) + '%', pctColor: pctColor(tempoPct) },
+  ];
+
+  lastSummary = {
+    dateLabel: fmtDateShort(dateForDay(TODAY)),
+    usersMetaDia, usersRealDia, usersMetaSemana, usersRealSemana,
+    revMetaDia, revRealDia: revenueToday, revMetaSemana, revRealSemana,
+    tempoMetaDia, tempoRealDia: tempoToday, tempoMetaSemana, tempoRealSemana,
+  };
+
+  const periodOptions = ['7','14','cycle','custom'].map(key => ({
+    key, label: key === '7' ? '7 dias' : key === '14' ? '14 dias' : key === 'cycle' ? 'Ciclo completo' : 'Custom',
+    active: trendPeriod === key,
+  }));
+
+  const trendCharts = [
+    buildChart('Usuários (WAU)', 'm1', false, true),
+    buildChart('Receita acumulada', 'm2', true, hasEntries || Object.values(DB).some(r => r?.m2 != null)),
+    buildChart('Tempo médio', 'm3', false, true),
+  ];
+
+  const statusStyles = {
+    done: { label: 'CONCLUÍDA', bg: 'var(--overlay)', color: 'var(--text-2)' },
+    current: { label: 'ATUAL', bg: 'var(--accent-subtle)', color: 'var(--accent)' },
+    future: { label: 'FUTURA', bg: 'transparent', color: 'var(--muted)' },
+  };
+
+  const weeks = [];
+  for (let wi = 1; wi <= 12; wi++) {
+    const status = wi < w ? 'done' : wi === w ? 'current' : 'future';
+    const ss = statusStyles[status];
+    const row = DB[wi] || {};
+    let dotUsers = 'var(--border)', dotRevenue = 'var(--border)', dotTempo = 'var(--border)';
+    if (status !== 'future') {
+      const endDay = Math.min(weekEndDay(wi), TODAY);
+      const uAct = actualAtDay(endDay)?.m1 ?? row.m1 ?? BASELINE.m1;
+      const tAct = actualAtDay(endDay)?.m3 ?? row.m3 ?? BASELINE.m3;
+      const rAct = row.m2 ?? revenueUpToDay(endDay);
+      const exp = expectedAtDay(endDay);
+      const cf = p => { const tr = tierOf(p); return tr === 'success' ? 'var(--ok)' : tr === 'warning' ? 'var(--risk)' : 'var(--danger)'; };
+      dotUsers = cf((uAct / exp.m1) * 100);
+      dotTempo = cf((exp.m3 / tAct) * 100);
+      dotRevenue = (hasEntries || row.m2 != null) && exp.m2 > 0 ? cf((rAct / exp.m2) * 100) : 'var(--border)';
+    }
+    if (expanded[wi] === undefined && wi === w) expanded[wi] = true;
+    weeks.push({
+      n: wi, isCurrent: wi === w, isFuture: wi > w,
+      dateRange: fmtDateShort(dateForDay(weekStartDay(wi))) + '–' + fmtDateShort(dateForDay(weekEndDay(wi))),
+      statusLabel: ss.label, statusBg: ss.bg, statusColor: ss.color,
+      dotUsers, dotRevenue, dotTempo,
+      m1Val: row.m1 ?? '', m2Val: row.m2 ?? '', m3Val: row.m3 ?? '', notaVal: row.nota ?? '',
     });
-  } catch(e) {
-    setSyncState('error', 'Erro');
-    showToast('Erro ao salvar — tente novamente', true);
-    btn.disabled = false;
-    btn.textContent = 'Salvar semana ' + s;
   }
+
+  const recentEntries = revenueEntries.slice(-3).reverse().map(e => ({ dateLabel: fmtDateShort(dateForDay(e.day)), valueLabel: fmtMoney(e.value) }));
+
+  document.getElementById('header-cycle').innerHTML = `Ciclo ${CYCLE_N} · Semana ${w} de 12 · <em>faltam ${CYCLE_DAYS - TODAY} dias</em>`;
+
+  return { todayLabel: fmtDateShort(dateForDay(TODAY)), todayCards, weekCards, periodOptions, trendCharts, weeks, recentEntries };
 }
 
-// ─── RESET ────────────────────────────────────────────────
-async function resetAll() {
-  if (!confirm('Apagar todos os registros do banco? Essa ação não pode ser desfeita.')) return;
-  setSyncState('syncing', 'Apagando');
-  try {
-    await dbDelete();
-    DB = {};
-    setSyncState('synced', 'Sincronizado');
-    showToast('Dados apagados');
-    build();
-  } catch(e) {
-    setSyncState('error', 'Erro');
-    showToast('Erro ao apagar', true);
-  }
+function render() {
+  const data = computeData();
+  renderHoje(data);
+  renderRevenue(data);
+  renderWeek(data);
+  renderTrend(data);
+  renderHistory(data);
 }
 
-// ─── INIT ─────────────────────────────────────────────────
 async function init() {
-  updateCycleMeta();
+  if (!newEntryDate) newEntryDate = isoForDay(TODAY);
+  if (!customStart) customStart = isoForDay(Math.max(1, TODAY - 13));
+  if (!customEnd) customEnd = isoForDay(TODAY);
   setSyncState('syncing', 'Conectando');
   try {
     const rows = await dbLoad();
     DB = {};
     rows.forEach(r => DB[r.semana] = r);
     setSyncState('synced', 'Sincronizado');
-    build();
   } catch(e) {
     setSyncState('error', 'Sem conexão');
-    showToast('Erro ao conectar com o banco', true);
-    // fallback: renderiza vazio
-    build();
+    showToast('Erro ao conectar', true);
   }
+  render();
 }
 
 init();
