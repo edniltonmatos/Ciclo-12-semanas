@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 90" width="120" height="90">
+  <!-- Fundo transparente — mark puro para uso sobre qualquer cor escura -->
+
+  <path d="M8 72 A52 52 0 1 1 112 72" stroke="#B5FF2D" stroke-width="5.5" stroke-linecap="round" fill="none"/>
+
+  <line x1="9"   y1="70"  x2="18"  y2="67"  stroke="#B5FF2D" stroke-width="2.2" stroke-linecap="round" opacity="0.45"/>
+  <line x1="13"  y1="46"  x2="22"  y2="51"  stroke="#B5FF2D" stroke-width="2.2" stroke-linecap="round" opacity="0.45"/>
+  <line x1="28"  y1="26"  x2="35"  y2="33"  stroke="#B5FF2D" stroke-width="2.2" stroke-linecap="round" opacity="0.45"/>
+  <line x1="60"  y1="18"  x2="60"  y2="27"  stroke="#B5FF2D" stroke-width="2.2" stroke-linecap="round" opacity="0.45"/>
+  <line x1="92"  y1="26"  x2="85"  y2="33"  stroke="#B5FF2D" stroke-width="2.2" stroke-linecap="round" opacity="0.45"/>
+  <line x1="107" y1="46"  x2="98"  y2="51"  stroke="#B5FF2D" stroke-width="2.2" stroke-linecap="round" opacity="0.45"/>
+  <line x1="111" y1="70"  x2="102" y2="67"  stroke="#B5FF2D" stroke-width="2.2" stroke-linecap="round" opacity="0.45"/>
+
+  <!-- Needle -->
+  <line x1="60" y1="63" x2="86" y2="33" stroke="#B5FF2D" stroke-width="4" stroke-linecap="round"/>
+  <circle cx="60" cy="63" r="7.5" fill="#B5FF2D"/>
+  <circle cx="60" cy="63" r="3.2" fill="#0E0F0C"/>
+
+  <!-- $ -->
+  <text x="90" y="32"
+    font-family="'Barlow Condensed', 'Arial Narrow', sans-serif"
+    font-weight="800" font-size="18" fill="#B5FF2D" text-anchor="middle">$</text>
+</svg>

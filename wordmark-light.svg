@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 70" width="240" height="70">
+  <rect width="240" height="70" fill="#F7F8F2"/>
+
+  <text x="12" y="38"
+    font-family="'Barlow Condensed', 'Arial Narrow', sans-serif"
+    font-weight="800" font-size="36" fill="#0E0F0C" letter-spacing="-0.5">GRANA</text>
+  <text x="12" y="66"
+    font-family="'Barlow Condensed', 'Arial Narrow', sans-serif"
+    font-weight="500" font-size="36" fill="#3D5A06" letter-spacing="-0.5">CERTA</text>
+</svg>

@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <rect width="200" height="200" fill="#0E0F0C"/>
+
+  <!-- Mark centralizado -->
+  <path d="M44 118 A56 56 0 1 1 156 118" stroke="#B5FF2D" stroke-width="6" stroke-linecap="round" fill="none"/>
+
+  <!-- Ticks -->
+  <line x1="45"  y1="116" x2="55"  y2="112" stroke="#B5FF2D" stroke-width="2.5" stroke-linecap="round" opacity="0.45"/>
+  <line x1="49"  y1="88"  x2="59"  y2="94"  stroke="#B5FF2D" stroke-width="2.5" stroke-linecap="round" opacity="0.45"/>
+  <line x1="67"  y1="66"  x2="74"  y2="74"  stroke="#B5FF2D" stroke-width="2.5" stroke-linecap="round" opacity="0.45"/>
+  <line x1="100" y1="57"  x2="100" y2="67"  stroke="#B5FF2D" stroke-width="2.5" stroke-linecap="round" opacity="0.45"/>
+  <line x1="133" y1="66"  x2="126" y2="74"  stroke="#B5FF2D" stroke-width="2.5" stroke-linecap="round" opacity="0.45"/>
+  <line x1="151" y1="88"  x2="141" y2="94"  stroke="#B5FF2D" stroke-width="2.5" stroke-linecap="round" opacity="0.45"/>
+  <line x1="155" y1="116" x2="145" y2="112" stroke="#B5FF2D" stroke-width="2.5" stroke-linecap="round" opacity="0.45"/>
+
+  <!-- Needle -->
+  <line x1="100" y1="107" x2="129" y2="73" stroke="#B5FF2D" stroke-width="4" stroke-linecap="round"/>
+  <circle cx="100" cy="107" r="8"   fill="#B5FF2D"/>
+  <circle cx="100" cy="107" r="3.5" fill="#0E0F0C"/>
+
+  <!-- $ -->
+  <text x="133" y="71"
+    font-family="'Barlow Condensed', 'Arial Narrow', sans-serif"
+    font-weight="800" font-size="20" fill="#B5FF2D" text-anchor="middle">$</text>
+
+  <!-- Wordmark abaixo -->
+  <text x="100" y="158"
+    font-family="'Barlow Condensed', 'Arial Narrow', sans-serif"
+    font-weight="800" font-size="34" fill="#F7F8F2" text-anchor="middle" letter-spacing="-0.5">GRANA</text>
+  <text x="100" y="188"
+    font-family="'Barlow Condensed', 'Arial Narrow', sans-serif"
+    font-weight="500" font-size="34" fill="#B5FF2D" text-anchor="middle" letter-spacing="-0.5">CERTA</text>
+</svg>
