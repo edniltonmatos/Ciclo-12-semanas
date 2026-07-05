@@ -368,10 +368,18 @@ document.getElementById('theme-toggle').onclick = toggleTheme;
 applyTheme(document.documentElement.getAttribute('data-theme'));
 
 // ─── CONFIG ───────────────────────────────────────────────
-const SUPABASE_URL = 'https://sbywtjxgkhqdeplymhdz.supabase.co';
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNieXd0anhna2hxZGVwbHltaGR6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc2ODc3NzUsImV4cCI6MjA5MzI2Mzc3NX0.9lGvokR-HdSdZAh-G0_70_0gwA6SKEtPwrvINmQmTnU';
+// Projeto OKR — "1 ano em 12 semanas" (registro semanal, notas, receita)
+const OKR_SUPABASE_URL = 'https://sbywtjxgkhqdeplymhdz.supabase.co';
+const OKR_SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNieXd0anhna2hxZGVwbHltaGR6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc2ODc3NzUsImV4cCI6MjA5MzI2Mzc3NX0.9lGvokR-HdSdZAh-G0_70_0gwA6SKEtPwrvINmQmTnU';
+
+// Projeto TESP — "Tempo de espera SP" (WAU + tempo médio de registros)
+// Preencha com credenciais de: Supabase Dashboard → TESP → Settings → API
+const TESP_SUPABASE_URL = 'https://SEU-PROJETO-TESP.supabase.co';
+const TESP_SUPABASE_KEY = 'SUA-CHAVE-ANON-TESP';
+
 const TABLE = 'okr_ciclo';
 const LIVE_METRICS_RPC = 'get_okr_live_metrics';
+const WAU_PERIOD_DAYS = 7;
 const CYCLE_N = 3;
 const CYCLE_DAYS = 84;
 const CICLO_START = new Date('2026-07-05T00:00:00-03:00');
@@ -419,6 +427,14 @@ function isoForDay(d) {
 function dayFromISO(iso) {
   const dt = new Date(iso + 'T12:00:00');
   return Math.round((dt - CICLO_START) / 86400000) + 1;
+}
+function metricsPeriod() {
+  const end = new Date();
+  const start = new Date(end.getTime() - WAU_PERIOD_DAYS * 86400000);
+  return { inicio: start.toISOString(), fim: end.toISOString() };
+}
+function tespConfigured() {
+  return !TESP_SUPABASE_URL.includes('SEU-PROJETO') && !TESP_SUPABASE_KEY.includes('SUA-CHAVE');
 }
 function expectedAt(w) { return { m1: EXPECTED.m1[w], m2: EXPECTED.m2[w], m3: EXPECTED.m3[w] }; }
 
@@ -507,32 +523,37 @@ function pathFromPoints(pts, xmin, xmax, ymin, ymax) {
 }
 
 // ─── SUPABASE ─────────────────────────────────────────────
-const headers = {
-  apikey: SUPABASE_KEY,
-  Authorization: 'Bearer ' + SUPABASE_KEY,
+const okrHeaders = {
+  apikey: OKR_SUPABASE_KEY,
+  Authorization: 'Bearer ' + OKR_SUPABASE_KEY,
   'Content-Type': 'application/json',
   Prefer: 'return=representation',
 };
+const tespHeaders = {
+  apikey: TESP_SUPABASE_KEY,
+  Authorization: 'Bearer ' + TESP_SUPABASE_KEY,
+  'Content-Type': 'application/json',
+};
 async function dbLoad() {
-  let r = await fetch(`${SUPABASE_URL}/rest/v1/${TABLE}?select=*&ciclo=eq.${CYCLE_N}&order=semana.asc`, { headers });
+  let r = await fetch(`${OKR_SUPABASE_URL}/rest/v1/${TABLE}?select=*&ciclo=eq.${CYCLE_N}&order=semana.asc`, { headers: okrHeaders });
   if (!r.ok) {
-    r = await fetch(`${SUPABASE_URL}/rest/v1/${TABLE}?select=*&order=semana.asc`, { headers });
+    r = await fetch(`${OKR_SUPABASE_URL}/rest/v1/${TABLE}?select=*&order=semana.asc`, { headers: okrHeaders });
     if (!r.ok) throw new Error('load');
   }
   return r.json();
 }
 async function dbSave(row) {
   const payload = { ...row, ciclo: CYCLE_N, updated_at: new Date().toISOString() };
-  let r = await fetch(`${SUPABASE_URL}/rest/v1/${TABLE}`, {
+  let r = await fetch(`${OKR_SUPABASE_URL}/rest/v1/${TABLE}`, {
     method: 'POST',
-    headers: { ...headers, Prefer: 'resolution=merge-duplicates,return=representation' },
+    headers: { ...okrHeaders, Prefer: 'resolution=merge-duplicates,return=representation' },
     body: JSON.stringify(payload),
   });
   if (!r.ok && payload.ciclo != null) {
     const { ciclo, ...legacy } = payload;
-    r = await fetch(`${SUPABASE_URL}/rest/v1/${TABLE}`, {
+    r = await fetch(`${OKR_SUPABASE_URL}/rest/v1/${TABLE}`, {
       method: 'POST',
-      headers: { ...headers, Prefer: 'resolution=merge-duplicates,return=representation' },
+      headers: { ...okrHeaders, Prefer: 'resolution=merge-duplicates,return=representation' },
       body: JSON.stringify(legacy),
     });
   }
@@ -540,10 +561,12 @@ async function dbSave(row) {
   return r.json();
 }
 async function fetchLiveMetrics() {
-  const r = await fetch(`${SUPABASE_URL}/rest/v1/rpc/${LIVE_METRICS_RPC}`, {
+  if (!tespConfigured()) return null;
+  const period = metricsPeriod();
+  const r = await fetch(`${TESP_SUPABASE_URL}/rest/v1/rpc/${LIVE_METRICS_RPC}`, {
     method: 'POST',
-    headers,
-    body: '{}',
+    headers: tespHeaders,
+    body: JSON.stringify({ p_inicio: period.inicio, p_fim: period.fim }),
   });
   if (!r.ok) return null;
   const data = await r.json();
@@ -784,9 +807,9 @@ function renderHistory(data) {
       </div>
       <div class="week-body">
         <div class="week-values">
-          <div class="week-field"><label>Usuários (WAU)${wk.isCurrent && LIVE.available ? ' · ao vivo' : ''}</label><input type="number" id="f${wk.n}-m1" value="${wk.m1Val}" placeholder="—"${wk.isCurrent && LIVE.available ? ' title="Sincronizado do Supabase"' : ''}></div>
+          <div class="week-field"><label>Usuários (WAU)${wk.isCurrent && LIVE.available ? ' · TESP' : ''}</label><input type="number" id="f${wk.n}-m1" value="${wk.m1Val}" placeholder="—"${wk.isCurrent && LIVE.available ? ' title="Sincronizado do TESP (registros)"' : ''}></div>
           <div class="week-field"><label>Receita acumulada (R$)</label><input type="number" id="f${wk.n}-m2" value="${wk.m2Val}" placeholder="—"></div>
-          <div class="week-field"><label>Tempo médio (min)${wk.isCurrent && LIVE.available ? ' · ao vivo' : ''}</label><input type="number" step="0.1" id="f${wk.n}-m3" value="${wk.m3Val}" placeholder="—"${wk.isCurrent && LIVE.available ? ' title="Sincronizado do Supabase"' : ''}></div>
+          <div class="week-field"><label>Tempo médio (min)${wk.isCurrent && LIVE.available ? ' · TESP' : ''}</label><input type="number" step="0.1" id="f${wk.n}-m3" value="${wk.m3Val}" placeholder="—"${wk.isCurrent && LIVE.available ? ' title="Sincronizado do TESP (registros)"' : ''}></div>
         </div>
         <div class="week-field"><label>Notas da semana</label><textarea id="f${wk.n}-nota" placeholder="O que funcionou? O que travou? Aprendizados...">${wk.notaVal}</textarea></div>
         <button class="btn-save" type="button" id="save-${wk.n}" onclick="saveWeek(${wk.n})">Salvar semana ${wk.n}</button>
@@ -926,9 +949,13 @@ async function init() {
     rows.forEach(r => {
       if (r.ciclo === CYCLE_N || (r.ciclo == null && CYCLE_N <= 2)) DB[r.semana] = r;
     });
-    setSyncState('syncing', 'Buscando métricas');
+    setSyncState('syncing', 'Buscando métricas TESP');
     const liveOk = await syncLiveMetrics();
-    setSyncState('synced', liveOk ? 'Dados ao vivo' : 'Sincronizado');
+    if (!tespConfigured()) {
+      setSyncState('synced', 'OKR conectado · configure TESP');
+    } else {
+      setSyncState('synced', liveOk ? 'Dados ao vivo (TESP)' : 'OKR conectado');
+    }
   } catch(e) {
     setSyncState('error', 'Sem conexão');
     showToast('Erro ao conectar', true);
@@ -938,7 +965,7 @@ async function init() {
     const prevLive = LIVE.available;
     const ok = await syncLiveMetrics();
     if (ok || prevLive !== LIVE.available) {
-      setSyncState('synced', ok ? 'Dados ao vivo' : 'Sincronizado');
+      setSyncState('synced', ok ? 'Dados ao vivo (TESP)' : (tespConfigured() ? 'OKR conectado' : 'OKR conectado · configure TESP'));
       render();
     }
   }, 5 * 60 * 1000);
