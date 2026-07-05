@@ -187,12 +187,16 @@ body {
 .revenue-bar input[type="number"],
 .revenue-bar input[type="text"] {
   background: var(--elevated); border: 1px solid var(--border-strong);
-  border-radius: 6px; padding: 7px 10px;
+  border-radius: 6px; padding: 7px 10px; height: 36px;
   font-family: 'Space Grotesk', monospace; font-size: 12px; color: var(--text);
-  outline: none;
+  outline: none; box-sizing: border-box;
 }
 .revenue-bar input[type="number"] { width: 110px; }
 .revenue-bar input:focus { border-color: var(--accent-fill); }
+.revenue-bar .btn-add {
+  margin-top: 0; height: 36px; padding: 0 16px; flex-shrink: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+}
 .revenue-chips { margin-left: auto; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .revenue-chip {
   font-family: 'Space Grotesk', monospace; font-size: 11px; color: var(--text-2);
@@ -341,7 +345,7 @@ body {
 <div class="main">
   <div class="obj-row">
     <h1 class="obj-h1">Construindo o <em>Grana Certa.</em></h1>
-    <p class="obj-summary">438 → 4.500 WAU · R$0 → R$3.000 · 5,6 → 2,0 min de espera</p>
+    <p class="obj-summary">Conseguir investidores para o meu app</p>
   </div>
 
   <section class="mt-36" id="sec-hoje"></section>
@@ -624,6 +628,11 @@ function buildSeries(key, cumMode) {
   return pts.filter((p,i,a) => i === 0 || p.y != null);
 }
 
+function dbMetricAtWeek(key, w) {
+  if (w === CURRENT_WEEK && LIVE.available && LIVE[key] != null) return LIVE[key];
+  return DB[w]?.[key] ?? null;
+}
+
 function buildChart(label, key, cumMode, hasData) {
   if (!hasData) return { label, empty: true };
   let periodStartDay, periodEndDay = TODAY;
@@ -634,18 +643,24 @@ function buildChart(label, key, cumMode, hasData) {
     periodStartDay = Math.max(1, dayFromISO(customStart) || 1);
     periodEndDay = Math.min(TODAY, dayFromISO(customEnd) || TODAY);
   }
-  const realFn = d => {
-    if (key === 'm2') return revenueUpToDay(d);
-    const a = actualAtDay(d);
-    if (a && a[key] != null) return a[key];
-    return latestMetric(key, weekOf(d));
-  };
   const expFn = d => expectedAtDay(d)[key];
   const realPts = [];
-  for (let d = periodStartDay; d <= periodEndDay; d++) realPts.push({ x: d, y: realFn(d) });
+  if (key === 'm1' || key === 'm3') {
+    if (periodStartDay <= 1) realPts.push({ x: 1, y: BASELINE[key] });
+    for (let w = 1; w <= CURRENT_WEEK; w++) {
+      const endDay = Math.min(weekEndDay(w), TODAY);
+      if (endDay < periodStartDay || endDay > periodEndDay) continue;
+      const val = dbMetricAtWeek(key, w);
+      if (val != null) realPts.push({ x: endDay, y: val });
+    }
+  } else {
+    const realFn = d => revenueUpToDay(d);
+    for (let d = periodStartDay; d <= periodEndDay; d++) realPts.push({ x: d, y: realFn(d) });
+  }
   const metaPts = [];
   for (let d = 1; d <= CYCLE_DAYS; d += 4) metaPts.push({ x: d, y: expFn(d) });
-  const reg = linreg(realPts.length >= 2 ? realPts : [{ x: 1, y: realFn(1) }, { x: TODAY, y: realFn(TODAY) }]);
+  const fallbackY = realPts.length ? realPts[realPts.length - 1].y : BASELINE[key];
+  const reg = linreg(realPts.length >= 2 ? realPts : [{ x: periodStartDay, y: fallbackY }, { x: TODAY, y: fallbackY }]);
   const projPts = [{ x: periodStartDay, y: reg.slope * periodStartDay + reg.intercept }, { x: CYCLE_DAYS, y: reg.slope * CYCLE_DAYS + reg.intercept }];
   const allY = [...realPts.map(p=>p.y), ...metaPts.map(p=>p.y), ...projPts.map(p=>p.y)];
   const ymin = Math.min(...allY), ymax = Math.max(...allY);
@@ -673,34 +688,6 @@ function copySummary() {
   }, 1800);
 }
 document.getElementById('btn-copy').onclick = copySummary;
-
-async function saveWeek(w) {
-  const btn = document.getElementById('save-' + w);
-  if (btn) { btn.disabled = true; btn.textContent = 'Salvando...'; }
-  setSyncState('syncing', 'Salvando');
-  const m1 = document.getElementById('f' + w + '-m1')?.value;
-  const m2 = document.getElementById('f' + w + '-m2')?.value;
-  const m3 = document.getElementById('f' + w + '-m3')?.value;
-  const nota = document.getElementById('f' + w + '-nota')?.value;
-  const row = {
-    semana: w,
-    m1: m1 !== '' ? Number(m1) : null,
-    m2: m2 !== '' ? Number(m2) : null,
-    m3: m3 !== '' ? Number(m3) : null,
-    nota: nota || null,
-  };
-  try {
-    await dbSave(row);
-    DB[w] = row;
-    setSyncState('synced', 'Sincronizado');
-    showToast('Semana ' + w + ' salva');
-    render();
-  } catch(e) {
-    setSyncState('error', 'Erro');
-    showToast('Erro ao salvar', true);
-    if (btn) { btn.disabled = false; btn.textContent = 'Salvar semana ' + w; }
-  }
-}
 
 function toggleWeek(w) {
   expanded[w] = !expanded[w];
@@ -743,7 +730,7 @@ function renderRevenue(data) {
       <label>Lançar receita</label>
       <input type="date" id="rev-date" value="${newEntryDate}">
       <input type="number" id="rev-value" placeholder="valor em R$" value="${newEntryValue}">
-      <button class="btn-save" type="button" id="rev-add">Adicionar</button>
+      <button class="btn-save btn-add" type="button" id="rev-add">Adicionar</button>
       <div class="revenue-chips">${chips}</div>
     </div>`;
   document.getElementById('rev-date').onchange = e => { newEntryDate = e.target.value; };
@@ -806,12 +793,10 @@ function renderHistory(data) {
       </div>
       <div class="week-body">
         <div class="week-values">
-          <div class="week-field"><label>Usuários (WAU)${wk.isCurrent && LIVE.available ? ' · TESP' : ''}</label><input type="number" id="f${wk.n}-m1" value="${wk.m1Val}" placeholder="—"${wk.isCurrent && LIVE.available ? ' title="Sincronizado do TESP (registros)"' : ''}></div>
-          <div class="week-field"><label>Receita acumulada (R$)</label><input type="number" id="f${wk.n}-m2" value="${wk.m2Val}" placeholder="—"></div>
-          <div class="week-field"><label>Tempo médio (min)${wk.isCurrent && LIVE.available ? ' · TESP' : ''}</label><input type="number" step="0.1" id="f${wk.n}-m3" value="${wk.m3Val}" placeholder="—"${wk.isCurrent && LIVE.available ? ' title="Sincronizado do TESP (registros)"' : ''}></div>
+          <div class="week-field"><label>Usuários (WAU)${wk.isCurrent && LIVE.available ? ' · TESP' : ''}</label><div class="display-val">${wk.m1Label}</div></div>
+          <div class="week-field"><label>Receita acumulada (R$)</label><div class="display-val">${wk.m2Label}</div></div>
+          <div class="week-field"><label>Tempo médio (min)${wk.isCurrent && LIVE.available ? ' · TESP' : ''}</label><div class="display-val">${wk.m3Label}</div></div>
         </div>
-        <div class="week-field"><label>Notas da semana</label><textarea id="f${wk.n}-nota" placeholder="O que funcionou? O que travou? Aprendizados...">${wk.notaVal}</textarea></div>
-        <button class="btn-save" type="button" id="save-${wk.n}" onclick="saveWeek(${wk.n})">Salvar semana ${wk.n}</button>
       </div>
     </div>`;
   }).join('');
@@ -880,10 +865,12 @@ function computeData() {
     active: trendPeriod === key,
   }));
 
+  const hasDbUsers = Object.values(DB).some(r => r?.m1 != null) || LIVE.available;
+  const hasDbTempo = Object.values(DB).some(r => r?.m3 != null) || LIVE.available;
   const trendCharts = [
-    buildChart('Usuários (WAU)', 'm1', false, true),
+    buildChart('Usuários (WAU)', 'm1', false, hasDbUsers),
     buildChart('Receita acumulada', 'm2', true, hasEntries || Object.values(DB).some(r => r?.m2 != null)),
-    buildChart('Tempo médio', 'm3', false, true),
+    buildChart('Tempo médio', 'm3', false, hasDbTempo),
   ];
 
   const statusStyles = {
@@ -910,14 +897,17 @@ function computeData() {
       dotRevenue = (hasEntries || row.m2 != null) && exp.m2 > 0 ? cf((rAct / exp.m2) * 100) : 'var(--border)';
     }
     if (expanded[wi] === undefined && wi === w) expanded[wi] = true;
-    const displayM1 = wi === w && LIVE.available && LIVE.m1 != null ? LIVE.m1 : (row.m1 ?? '');
-    const displayM3 = wi === w && LIVE.available && LIVE.m3 != null ? LIVE.m3 : (row.m3 ?? '');
+    const m1 = dbMetricAtWeek('m1', wi);
+    const m2 = row.m2;
+    const m3 = dbMetricAtWeek('m3', wi);
     weeks.push({
       n: wi, isCurrent: wi === w, isFuture: wi > w,
       dateRange: fmtDateShort(dateForDay(weekStartDay(wi))) + '–' + fmtDateShort(dateForDay(weekEndDay(wi))),
       statusLabel: ss.label, statusBg: ss.bg, statusColor: ss.color,
       dotUsers, dotRevenue, dotTempo,
-      m1Val: displayM1, m2Val: row.m2 ?? '', m3Val: displayM3, notaVal: row.nota ?? '',
+      m1Label: m1 != null ? fmtInt(m1) : '—',
+      m2Label: m2 != null ? fmtMoney(m2) : '—',
+      m3Label: m3 != null ? fmtMin(m3) : '—',
     });
   }
 
