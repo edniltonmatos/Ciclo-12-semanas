@@ -369,8 +369,9 @@ applyTheme(document.documentElement.getAttribute('data-theme'));
 
 // ─── CONFIG ───────────────────────────────────────────────
 const SUPABASE_URL = 'https://sbywtjxgkhqdeplymhdz.supabase.co';
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNieXd0anhna2hxZGVwbHltaGR6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njc2ODc3NzUsImV4cCI6MjA5MzI2Mzc3NX0.9lGvokR-HdSdZAh-G0_70_0gwA6SKEtPwrvINmQmTnU';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNieXd0anhna2hxZGVwbHltaGR6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc2ODc3NzUsImV4cCI6MjA5MzI2Mzc3NX0.9lGvokR-HdSdZAh-G0_70_0gwA6SKEtPwrvINmQmTnU';
 const TABLE = 'okr_ciclo';
+const LIVE_METRICS_RPC = 'get_okr_live_metrics';
 const CYCLE_N = 3;
 const CYCLE_DAYS = 84;
 const CICLO_START = new Date('2026-07-05T00:00:00-03:00');
@@ -383,6 +384,7 @@ const EXPECTED = {
 };
 
 let DB = {};
+let LIVE = { m1: null, m3: null, updatedAt: null, available: false };
 let revenueEntries = JSON.parse(localStorage.getItem('gc-revenue-entries') || '[]');
 let expanded = {};
 let trendPeriod = localStorage.getItem('gc-trend-period') || '14';
@@ -446,17 +448,21 @@ function actualAtDay(d) {
   if (d > TODAY) return null;
   const w = weekOf(d);
   const row = DB[w];
-  if (!row || (row.m1 == null && row.m3 == null)) return null;
+  const liveRow = w === CURRENT_WEEK && LIVE.available
+    ? { m1: LIVE.m1, m3: LIVE.m3, m2: row?.m2 ?? null }
+    : row;
+  if (!liveRow || (liveRow.m1 == null && liveRow.m3 == null)) return null;
   const prev = prevWeekValues(w);
   const frac = (d - weekStartDay(w) + 1) / 7;
   return {
-    m1: row.m1 != null ? prev.m1 + (row.m1 - prev.m1) * frac : null,
-    m2: row.m2 != null ? row.m2 : revenueUpToDay(d),
-    m3: row.m3 != null ? prev.m3 + (row.m3 - prev.m3) * frac : null,
+    m1: liveRow.m1 != null ? prev.m1 + (liveRow.m1 - prev.m1) * frac : null,
+    m2: liveRow.m2 != null ? liveRow.m2 : revenueUpToDay(d),
+    m3: liveRow.m3 != null ? prev.m3 + (liveRow.m3 - prev.m3) * frac : null,
   };
 }
 
 function latestMetric(key, upToWeek) {
+  if (upToWeek === CURRENT_WEEK && LIVE.available && LIVE[key] != null) return LIVE[key];
   for (let s = upToWeek; s >= 1; s--) {
     if (DB[s]?.[key] != null) return DB[s][key];
   }
@@ -508,18 +514,66 @@ const headers = {
   Prefer: 'return=representation',
 };
 async function dbLoad() {
-  const r = await fetch(`${SUPABASE_URL}/rest/v1/${TABLE}?select=*&order=semana.asc`, { headers });
-  if (!r.ok) throw new Error('load');
+  let r = await fetch(`${SUPABASE_URL}/rest/v1/${TABLE}?select=*&ciclo=eq.${CYCLE_N}&order=semana.asc`, { headers });
+  if (!r.ok) {
+    r = await fetch(`${SUPABASE_URL}/rest/v1/${TABLE}?select=*&order=semana.asc`, { headers });
+    if (!r.ok) throw new Error('load');
+  }
   return r.json();
 }
 async function dbSave(row) {
-  const r = await fetch(`${SUPABASE_URL}/rest/v1/${TABLE}`, {
+  const payload = { ...row, ciclo: CYCLE_N, updated_at: new Date().toISOString() };
+  let r = await fetch(`${SUPABASE_URL}/rest/v1/${TABLE}`, {
     method: 'POST',
     headers: { ...headers, Prefer: 'resolution=merge-duplicates,return=representation' },
-    body: JSON.stringify({ ...row, updated_at: new Date().toISOString() }),
+    body: JSON.stringify(payload),
   });
+  if (!r.ok && payload.ciclo != null) {
+    const { ciclo, ...legacy } = payload;
+    r = await fetch(`${SUPABASE_URL}/rest/v1/${TABLE}`, {
+      method: 'POST',
+      headers: { ...headers, Prefer: 'resolution=merge-duplicates,return=representation' },
+      body: JSON.stringify(legacy),
+    });
+  }
   if (!r.ok) throw new Error('save');
   return r.json();
+}
+async function fetchLiveMetrics() {
+  const r = await fetch(`${SUPABASE_URL}/rest/v1/rpc/${LIVE_METRICS_RPC}`, {
+    method: 'POST',
+    headers,
+    body: '{}',
+  });
+  if (!r.ok) return null;
+  const data = await r.json();
+  if (!data || (data.wau == null && data.tempo_medio == null)) return null;
+  return {
+    m1: data.wau != null ? Number(data.wau) : null,
+    m3: data.tempo_medio != null ? Number(data.tempo_medio) : null,
+    updatedAt: data.updated_at || null,
+  };
+}
+async function syncLiveMetrics() {
+  try {
+    const metrics = await fetchLiveMetrics();
+    if (!metrics) return false;
+    LIVE = { ...metrics, available: metrics.m1 != null || metrics.m3 != null };
+    if (LIVE.available) {
+      const row = {
+        semana: CURRENT_WEEK,
+        m1: LIVE.m1,
+        m3: LIVE.m3,
+        m2: DB[CURRENT_WEEK]?.m2 ?? null,
+        nota: DB[CURRENT_WEEK]?.nota ?? null,
+      };
+      await dbSave(row);
+      DB[CURRENT_WEEK] = { ...DB[CURRENT_WEEK], ...row, ciclo: CYCLE_N };
+    }
+    return LIVE.available;
+  } catch (_) {
+    return false;
+  }
 }
 function setSyncState(state, label) {
   document.getElementById('sync-dot').className = 'sync-dot ' + state;
@@ -542,8 +596,7 @@ function buildSeries(key, cumMode) {
   const pts = [{ x: 1, y: BASELINE[key] }];
   for (let w = 1; w <= CURRENT_WEEK; w++) {
     const endDay = Math.min(weekEndDay(w), TODAY);
-    let val = DB[w]?.[key];
-    if (key === 'm2') val = revenueUpToDay(endDay);
+    let val = key === 'm2' ? revenueUpToDay(endDay) : (w === CURRENT_WEEK ? latestMetric(key, w) : DB[w]?.[key]);
     if (val != null) pts.push({ x: endDay, y: val });
   }
   return pts.filter((p,i,a) => i === 0 || p.y != null);
@@ -731,9 +784,9 @@ function renderHistory(data) {
       </div>
       <div class="week-body">
         <div class="week-values">
-          <div class="week-field"><label>Usuários (WAU)</label><input type="number" id="f${wk.n}-m1" value="${wk.m1Val}" placeholder="—"></div>
+          <div class="week-field"><label>Usuários (WAU)${wk.isCurrent && LIVE.available ? ' · ao vivo' : ''}</label><input type="number" id="f${wk.n}-m1" value="${wk.m1Val}" placeholder="—"${wk.isCurrent && LIVE.available ? ' title="Sincronizado do Supabase"' : ''}></div>
           <div class="week-field"><label>Receita acumulada (R$)</label><input type="number" id="f${wk.n}-m2" value="${wk.m2Val}" placeholder="—"></div>
-          <div class="week-field"><label>Tempo médio (min)</label><input type="number" step="0.1" id="f${wk.n}-m3" value="${wk.m3Val}" placeholder="—"></div>
+          <div class="week-field"><label>Tempo médio (min)${wk.isCurrent && LIVE.available ? ' · ao vivo' : ''}</label><input type="number" step="0.1" id="f${wk.n}-m3" value="${wk.m3Val}" placeholder="—"${wk.isCurrent && LIVE.available ? ' title="Sincronizado do Supabase"' : ''}></div>
         </div>
         <div class="week-field"><label>Notas da semana</label><textarea id="f${wk.n}-nota" placeholder="O que funcionou? O que travou? Aprendizados...">${wk.notaVal}</textarea></div>
         <button class="btn-save" type="button" id="save-${wk.n}" onclick="saveWeek(${wk.n})">Salvar semana ${wk.n}</button>
@@ -825,8 +878,8 @@ function computeData() {
     let dotUsers = 'var(--border)', dotRevenue = 'var(--border)', dotTempo = 'var(--border)';
     if (status !== 'future') {
       const endDay = Math.min(weekEndDay(wi), TODAY);
-      const uAct = actualAtDay(endDay)?.m1 ?? row.m1 ?? BASELINE.m1;
-      const tAct = actualAtDay(endDay)?.m3 ?? row.m3 ?? BASELINE.m3;
+      const uAct = actualAtDay(endDay)?.m1 ?? (wi === w && LIVE.available ? LIVE.m1 : row.m1) ?? BASELINE.m1;
+      const tAct = actualAtDay(endDay)?.m3 ?? (wi === w && LIVE.available ? LIVE.m3 : row.m3) ?? BASELINE.m3;
       const rAct = row.m2 ?? revenueUpToDay(endDay);
       const exp = expectedAtDay(endDay);
       const cf = p => { const tr = tierOf(p); return tr === 'success' ? 'var(--ok)' : tr === 'warning' ? 'var(--risk)' : 'var(--danger)'; };
@@ -835,12 +888,14 @@ function computeData() {
       dotRevenue = (hasEntries || row.m2 != null) && exp.m2 > 0 ? cf((rAct / exp.m2) * 100) : 'var(--border)';
     }
     if (expanded[wi] === undefined && wi === w) expanded[wi] = true;
+    const displayM1 = wi === w && LIVE.available && LIVE.m1 != null ? LIVE.m1 : (row.m1 ?? '');
+    const displayM3 = wi === w && LIVE.available && LIVE.m3 != null ? LIVE.m3 : (row.m3 ?? '');
     weeks.push({
       n: wi, isCurrent: wi === w, isFuture: wi > w,
       dateRange: fmtDateShort(dateForDay(weekStartDay(wi))) + '–' + fmtDateShort(dateForDay(weekEndDay(wi))),
       statusLabel: ss.label, statusBg: ss.bg, statusColor: ss.color,
       dotUsers, dotRevenue, dotTempo,
-      m1Val: row.m1 ?? '', m2Val: row.m2 ?? '', m3Val: row.m3 ?? '', notaVal: row.nota ?? '',
+      m1Val: displayM1, m2Val: row.m2 ?? '', m3Val: displayM3, notaVal: row.nota ?? '',
     });
   }
 
@@ -868,13 +923,25 @@ async function init() {
   try {
     const rows = await dbLoad();
     DB = {};
-    rows.forEach(r => DB[r.semana] = r);
-    setSyncState('synced', 'Sincronizado');
+    rows.forEach(r => {
+      if (r.ciclo === CYCLE_N || (r.ciclo == null && CYCLE_N <= 2)) DB[r.semana] = r;
+    });
+    setSyncState('syncing', 'Buscando métricas');
+    const liveOk = await syncLiveMetrics();
+    setSyncState('synced', liveOk ? 'Dados ao vivo' : 'Sincronizado');
   } catch(e) {
     setSyncState('error', 'Sem conexão');
     showToast('Erro ao conectar', true);
   }
   render();
+  setInterval(async () => {
+    const prevLive = LIVE.available;
+    const ok = await syncLiveMetrics();
+    if (ok || prevLive !== LIVE.available) {
+      setSyncState('synced', ok ? 'Dados ao vivo' : 'Sincronizado');
+      render();
+    }
+  }, 5 * 60 * 1000);
 }
 
 init();
