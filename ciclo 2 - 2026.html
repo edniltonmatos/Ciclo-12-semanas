@@ -1,0 +1,767 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ciclo 12 Semanas</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;800&family=Space+Grotesk:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:      #080808;
+  --s1:      #0F0F0F;
+  --s2:      #161616;
+  --border:  #242424;
+  --yellow:  #F5D000;
+  --text:    #F7F7F7;
+  --text2:   #E8E8E8;
+  --muted:   #777777;
+  --muted2:  #555555;
+  --green:   #22C55E;
+  --orange:  #F97316;
+  --red:     #EF4444;
+}
+
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 14px;
+  line-height: 1.6;
+  min-height: 100vh;
+  padding-bottom: 100px;
+  -webkit-font-smoothing: antialiased;
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  top: -200px; left: 50%;
+  transform: translateX(-50%);
+  width: 900px; height: 600px;
+  background: radial-gradient(ellipse, rgba(245,208,0,0.05) 0%, transparent 65%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+header {
+  position: relative;
+  z-index: 1;
+  border-bottom: 1px solid var(--border);
+  padding: 64px 0 52px;
+}
+
+.container {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 0 28px;
+  position: relative;
+  z-index: 1;
+}
+
+.eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+.eyebrow-line { width: 24px; height: 1px; background: var(--yellow); flex-shrink: 0; }
+.eyebrow-text {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 11px; font-weight: 800;
+  letter-spacing: 3px; text-transform: uppercase;
+  color: var(--yellow);
+}
+
+h1 {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: clamp(34px, 6vw, 58px);
+  font-weight: 800;
+  letter-spacing: -2px;
+  line-height: 1.0;
+  color: var(--text);
+  margin-bottom: 36px;
+}
+h1 em { font-style: normal; color: var(--yellow); }
+
+.objetivo-block {
+  border: 1px solid var(--border);
+  background: var(--s1);
+  padding: 20px 24px;
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+  max-width: 580px;
+}
+.obj-bar { width: 2px; background: var(--yellow); flex-shrink: 0; align-self: stretch; }
+.obj-label {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 10px; font-weight: 800;
+  letter-spacing: 3px; text-transform: uppercase;
+  color: var(--yellow); margin-bottom: 6px;
+}
+.obj-text { font-size: 14px; color: var(--text2); line-height: 1.5; }
+
+.section-gap { margin-top: 52px; }
+
+.section-label {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 11px; font-weight: 800;
+  letter-spacing: 3px; text-transform: uppercase;
+  color: var(--muted);
+  display: flex; align-items: center; gap: 14px;
+  margin-bottom: 16px;
+}
+.section-label::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+.metas-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1px;
+  background: var(--border);
+  border: 1px solid var(--border);
+}
+@media (max-width: 680px) { .metas-grid { grid-template-columns: 1fr; } }
+
+.meta-card {
+  background: var(--s1);
+  padding: 24px;
+  position: relative;
+  transition: background 0.15s;
+}
+.meta-card:hover { background: var(--s2); }
+.meta-top-bar { position: absolute; top: 0; left: 0; right: 0; height: 2px; background: var(--yellow); }
+
+.meta-eyebrow {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 10px; font-weight: 800;
+  letter-spacing: 3px; text-transform: uppercase;
+  color: var(--yellow); margin-bottom: 14px; margin-top: 6px;
+}
+
+.meta-value {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 38px; font-weight: 800;
+  letter-spacing: -1.5px; color: var(--text);
+  line-height: 1; margin-bottom: 4px;
+}
+
+.meta-desc { font-size: 12px; color: var(--muted); margin-bottom: 20px; line-height: 1.4; }
+
+.prog-bg { height: 2px; background: var(--border); position: relative; }
+.prog-fill {
+  height: 2px; background: var(--yellow);
+  width: 0%; position: absolute; top: 0; left: 0;
+  transition: width 0.7s cubic-bezier(.4,0,.2,1);
+}
+.prog-labels {
+  display: flex; justify-content: space-between;
+  font-size: 11px; color: var(--muted2); margin-top: 8px;
+}
+.prog-pct { color: var(--yellow); font-weight: 500; }
+
+.top-row {
+  display: flex; justify-content: space-between;
+  align-items: center; flex-wrap: wrap; gap: 10px;
+  margin-bottom: 16px;
+}
+
+/* SYNC STATUS */
+.sync-status {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 10px; font-weight: 800;
+  letter-spacing: 2px; text-transform: uppercase;
+  color: var(--muted2);
+  display: flex; align-items: center; gap: 8px;
+}
+.sync-dot {
+  width: 6px; height: 6px;
+  background: var(--muted2);
+  border-radius: 50%;
+  transition: background 0.3s;
+}
+.sync-dot.syncing { background: var(--orange); animation: pulse 1s infinite; }
+.sync-dot.synced  { background: var(--green); }
+.sync-dot.error   { background: var(--red); }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+.reset-btn {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 10px; font-weight: 800;
+  letter-spacing: 2px; text-transform: uppercase;
+  color: var(--muted2); background: none;
+  border: 1px solid var(--border);
+  padding: 7px 14px; cursor: pointer;
+  transition: color 0.2s, border-color 0.2s;
+}
+.reset-btn:hover { color: var(--red); border-color: var(--red); }
+
+/* LOADING */
+.loading-wrap {
+  display: flex; align-items: center; gap: 12px;
+  padding: 32px 0; color: var(--muted);
+  font-size: 12px; letter-spacing: 2px; text-transform: uppercase;
+}
+.loading-spinner {
+  width: 16px; height: 16px;
+  border: 2px solid var(--border);
+  border-top-color: var(--yellow);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.semana-block {
+  border: 1px solid var(--border);
+  background: var(--s1);
+  margin-bottom: 2px;
+  transition: border-color 0.2s;
+}
+.semana-block.is-active { border-color: var(--yellow); }
+.semana-block.is-done { opacity: 0.5; }
+
+.semana-header {
+  display: flex; align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px; cursor: pointer;
+  user-select: none; gap: 12px;
+  transition: background 0.15s;
+}
+.semana-header:hover { background: var(--s2); }
+
+.sem-left { display: flex; align-items: center; gap: 16px; min-width: 0; }
+
+.sem-num {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 11px; font-weight: 800;
+  letter-spacing: 2px; color: var(--muted2);
+  white-space: nowrap; min-width: 44px;
+}
+.semana-block.is-active .sem-num { color: var(--yellow); }
+
+.sem-vals { display: flex; gap: 16px; flex-wrap: wrap; }
+.sem-val-item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }
+.sem-dot { width: 4px; height: 4px; background: var(--yellow); flex-shrink: 0; }
+.sem-val { color: var(--text2); font-weight: 500; }
+
+.sem-right { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+
+.status-pill {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 10px; font-weight: 800;
+  letter-spacing: 1px; text-transform: uppercase;
+  padding: 4px 10px; border: 1px solid;
+}
+.s-atual  { color: var(--yellow);  border-color: rgba(245,208,0,0.3);  background: rgba(245,208,0,0.06); }
+.s-ok     { color: var(--green);   border-color: rgba(34,197,94,0.3);  background: rgba(34,197,94,0.06); }
+.s-risco  { color: var(--orange);  border-color: rgba(249,115,22,0.3); background: rgba(249,115,22,0.06); }
+.s-atras  { color: var(--red);     border-color: rgba(239,68,68,0.3);  background: rgba(239,68,68,0.06); }
+.s-vazio  { color: var(--muted2);  border-color: var(--border);        background: transparent; }
+.s-futura { color: var(--muted2);  border-color: var(--border);        background: transparent; }
+
+.chevron { color: var(--muted2); font-size: 10px; transition: transform 0.2s; flex-shrink: 0; }
+.semana-block.is-open .chevron { transform: rotate(180deg); }
+
+.semana-body {
+  display: none;
+  padding: 0 20px 24px;
+  border-top: 1px solid var(--border);
+}
+.semana-block.is-open .semana-body { display: block; }
+
+.expected-strip {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-top: none;
+  padding: 12px 16px;
+  display: flex; align-items: center;
+  gap: 24px; flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+.exp-head { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: var(--muted2); white-space: nowrap; }
+.exp-item { display: flex; flex-direction: column; gap: 2px; }
+.exp-sub { font-size: 10px; letter-spacing: 1px; text-transform: uppercase; color: var(--muted2); }
+.exp-val { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 15px; font-weight: 800; color: var(--yellow); letter-spacing: -0.5px; }
+
+.inputs-grid {
+  display: grid; grid-template-columns: repeat(3, 1fr);
+  gap: 12px; margin-bottom: 14px;
+}
+@media (max-width: 560px) { .inputs-grid { grid-template-columns: 1fr; } }
+
+.field { display: flex; flex-direction: column; gap: 6px; }
+.field-label {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 10px; font-weight: 800;
+  letter-spacing: 2px; text-transform: uppercase;
+  color: var(--yellow);
+}
+.field-sub { font-size: 11px; color: var(--muted); margin-top: -3px; line-height: 1.3; }
+
+input[type="number"], textarea {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 14px;
+  padding: 10px 12px;
+  outline: none; width: 100%;
+  transition: border-color 0.15s;
+  -moz-appearance: textfield; appearance: textfield;
+}
+input::-webkit-outer-spin-button,
+input::-webkit-inner-spin-button { -webkit-appearance: none; }
+input:focus, textarea:focus { border-color: var(--yellow); }
+textarea { resize: vertical; min-height: 64px; font-size: 13px; line-height: 1.5; }
+
+.dica {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-left: 2px solid var(--yellow);
+  padding: 12px 16px;
+  font-size: 12px; color: var(--muted);
+  line-height: 1.6; margin: 14px 0 16px;
+}
+.dica strong { color: var(--text2); font-weight: 500; }
+
+.btn-save {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 11px; font-weight: 800;
+  letter-spacing: 2px; text-transform: uppercase;
+  background: var(--yellow); color: #000;
+  border: none; padding: 11px 24px;
+  cursor: pointer; transition: opacity 0.15s;
+}
+.btn-save:hover { opacity: 0.85; }
+.btn-save:active { opacity: 0.7; }
+.btn-save:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.toast {
+  position: fixed; bottom: 28px; right: 24px;
+  background: var(--yellow); color: #000;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 11px; font-weight: 800;
+  letter-spacing: 2px; text-transform: uppercase;
+  padding: 12px 20px;
+  opacity: 0; transform: translateY(8px);
+  transition: opacity 0.2s, transform 0.2s;
+  pointer-events: none; z-index: 999;
+}
+.toast.show { opacity: 1; transform: translateY(0); }
+.toast.error { background: var(--red); color: #fff; }
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+header        { animation: fadeUp 0.4s ease both; }
+.metas-grid   { animation: fadeUp 0.4s 0.1s ease both; }
+#semanas-wrap { animation: fadeUp 0.4s 0.18s ease both; }
+
+@media (max-width: 480px) {
+  header { padding: 40px 0 32px; }
+  h1 { letter-spacing: -1.5px; }
+  .semana-header { padding: 12px 14px; }
+  .semana-body { padding: 0 14px 20px; }
+  .sem-vals { display: none; }
+  .expected-strip { gap: 14px; }
+  .container { padding: 0 16px; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="container">
+    <div class="eyebrow">
+      <div class="eyebrow-line"></div>
+      <span class="eyebrow-text" id="eyebrow-week">Ciclo 12 Semanas · OKR · Carregando...</span>
+    </div>
+    <h1>Construindo<br>em <em>público.</em></h1>
+    <div class="objetivo-block">
+      <div class="obj-bar"></div>
+      <div>
+        <p class="obj-label">Objetivo do ciclo</p>
+        <p class="obj-text">Parar de ser entregador — construir receita e audiência suficientes para viver do meu próprio software.</p>
+      </div>
+    </div>
+  </div>
+</header>
+
+<div class="container">
+
+  <div class="section-gap">
+    <div class="section-label">Key Results</div>
+    <div class="metas-grid">
+      <div class="meta-card">
+        <div class="meta-top-bar"></div>
+        <p class="meta-eyebrow">KR 01 · Instagram</p>
+        <div class="meta-value" id="cur-m1">—</div>
+        <p class="meta-desc">seguidores · meta 2.000<br>audiência orgânica para distribuição</p>
+        <div class="prog-bg"><div class="prog-fill" id="bar-m1"></div></div>
+        <div class="prog-labels"><span class="prog-pct" id="pct-m1">—</span><span>2.000</span></div>
+      </div>
+      <div class="meta-card">
+        <div class="meta-top-bar"></div>
+        <p class="meta-eyebrow">KR 02 · Receita</p>
+        <div class="meta-value" id="cur-m2">—</div>
+        <p class="meta-desc">receita acumulada · meta R$1.500<br>apenas de produtos digitais</p>
+        <div class="prog-bg"><div class="prog-fill" id="bar-m2"></div></div>
+        <div class="prog-labels"><span class="prog-pct" id="pct-m2">—</span><span>R$1.500</span></div>
+      </div>
+      <div class="meta-card">
+        <div class="meta-top-bar"></div>
+        <p class="meta-eyebrow">KR 03 · Usuários</p>
+        <div class="meta-value" id="cur-m3">—</div>
+        <p class="meta-desc">usuários ativos · meta 200<br>20 pagantes para validar modelo</p>
+        <div class="prog-bg"><div class="prog-fill" id="bar-m3"></div></div>
+        <div class="prog-labels"><span class="prog-pct" id="pct-m3">—</span><span>200</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div style="margin-top:52px">
+    <div class="top-row">
+      <div class="section-label" style="margin-bottom:0;flex:1">Registro semanal</div>
+      <div style="display:flex;align-items:center;gap:12px">
+        <div class="sync-status">
+          <div class="sync-dot" id="sync-dot"></div>
+          <span id="sync-label">Conectando</span>
+        </div>
+        <button class="reset-btn" onclick="resetAll()">↺ Resetar</button>
+      </div>
+    </div>
+    <div id="semanas-wrap">
+      <div class="loading-wrap">
+        <div class="loading-spinner"></div>
+        Carregando dados...
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ─── CONFIG ───────────────────────────────────────────────
+const SUPABASE_URL = 'https://sbywtjxgkhqdeplymhdz.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNieXd0anhna2hxZGVwbHltaGR6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc2ODc3NzUsImV4cCI6MjA5MzI2Mzc3NX0.9lGvokR-HdSdZAh-G0_70_0gwA6SKEtPwrvINmQmTnU';
+const TABLE = 'okr_ciclo';
+
+// Ciclo: começa domingo 06/04/2026 (semana começa no domingo)
+// O usuário disse que o ciclo começou em 05/04/2026 (domingo)
+const CICLO_START = new Date('2026-04-05T00:00:00-03:00');
+const CICLO_END   = new Date('2026-06-27T23:59:59-03:00');
+
+// ─── SEMANA ATUAL ─────────────────────────────────────────
+function getCurrentWeek() {
+  const now = new Date();
+  const msPerWeek = 7 * 24 * 60 * 60 * 1000;
+  const diff = now - CICLO_START;
+  if (diff < 0) return 1;
+  const week = Math.floor(diff / msPerWeek) + 1;
+  return Math.min(Math.max(week, 1), 12);
+}
+
+// ─── SUPABASE API ─────────────────────────────────────────
+const headers = {
+  'apikey': SUPABASE_KEY,
+  'Authorization': 'Bearer ' + SUPABASE_KEY,
+  'Content-Type': 'application/json',
+  'Prefer': 'return=representation',
+};
+
+async function dbLoad() {
+  const r = await fetch(`${SUPABASE_URL}/rest/v1/${TABLE}?select=*&order=semana.asc`, { headers });
+  if (!r.ok) throw new Error('Erro ao carregar: ' + r.status);
+  return await r.json();
+}
+
+async function dbSave(row) {
+  // upsert by primary key (semana)
+  const r = await fetch(`${SUPABASE_URL}/rest/v1/${TABLE}`, {
+    method: 'POST',
+    headers: { ...headers, 'Prefer': 'resolution=merge-duplicates,return=representation' },
+    body: JSON.stringify({ ...row, updated_at: new Date().toISOString() }),
+  });
+  if (!r.ok) throw new Error('Erro ao salvar: ' + r.status);
+  return await r.json();
+}
+
+async function dbDelete() {
+  const r = await fetch(`${SUPABASE_URL}/rest/v1/${TABLE}?semana=gte.1`, {
+    method: 'DELETE',
+    headers,
+  });
+  if (!r.ok) throw new Error('Erro ao deletar: ' + r.status);
+}
+
+// ─── STATE ────────────────────────────────────────────────
+let DB = {}; // semana -> row
+const CURRENT_WEEK = getCurrentWeek();
+
+// ─── SYNC UI ──────────────────────────────────────────────
+function setSyncState(state, label) {
+  const dot = document.getElementById('sync-dot');
+  const lbl = document.getElementById('sync-label');
+  dot.className = 'sync-dot ' + state;
+  lbl.textContent = label;
+}
+
+// ─── TOAST ────────────────────────────────────────────────
+let toastTimer;
+function showToast(msg, isError) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'toast show' + (isError ? ' error' : '');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.className = 'toast', 2500);
+}
+
+// ─── METAS ────────────────────────────────────────────────
+const DICAS = [
+  "<strong>Semana 1 — Setup.</strong> Otimize bio do Instagram, defina o problema central do app em 1 frase, publique o primeiro post da jornada.",
+  "<strong>Semana 2 — Consistência.</strong> Poste todos os dias, mesmo que seja só story. Mostre o protótipo para 2–3 pessoas do seu círculo.",
+  "<strong>Semana 3 — Validação da dor.</strong> Engajamento ativo: comente em contas do mesmo nicho. Valide a dor, não a solução ainda.",
+  "<strong>Semana 4 — Revisão S1-S4.</strong> O que funcionou? Dobre o que trouxe resultado. Reels sobre a jornada de sair das entregas convertem bem.",
+  "<strong>Semana 5 — Build in public.</strong> Mostre o MVP mesmo imperfeito. Imperfeito publicado supera perfeito na gaveta.",
+  "<strong>Semana 6 — Meio do ciclo.</strong> Avalie honestamente: está no ritmo? Se não, o que muda na segunda metade? Ajuste sem drama.",
+  "<strong>Semana 7 — Conversão.</strong> Se tem usuários gratuitos, qual é a barreira real para pagarem? Teste um desconto ou bônus.",
+  "<strong>Semana 8 — Prova social.</strong> Peça depoimentos de quem usou. Resultado real de outros converte mais do que qualquer copy.",
+  "<strong>Semana 9 — Conteúdo âncora.</strong> Crie um post que explique tudo sobre o produto. Reutilize. Repromova. É ativo, não gasto.",
+  "<strong>Semana 10 — Push final começa.</strong> Mais posts, mais alcance ativo. Prepare promoção de lançamento se aplicável.",
+  "<strong>Semana 11 — Urgência real.</strong> Crie condição especial com prazo para usuários gratuitos migrarem para pago. Cumpra o prazo.",
+  "<strong>Semana 12 — Fechamento.</strong> Documente os resultados com honestidade. O próximo ciclo começa com esses dados.",
+];
+
+// Metas acumuladas por semana — curva customizada
+const EXPECTED = {
+  m1: [0, 215, 230, 245, 260, 275, 320, 400, 520, 700, 950, 1400, 2000],
+  m2: [0,   0,   0,   0,   0,   0,   0, 150, 300, 500, 750, 1100, 1500],
+  m3: [0,   2,   5,  10,  17,  25,  45,  70, 100, 130, 160,  185,  200],
+};
+ 
+function expectedAt(s) {
+  return {
+    m1: EXPECTED.m1[s],
+    m2: EXPECTED.m2[s],
+    m3: EXPECTED.m3[s],
+  };
+}
+
+function statusFor(s, d) {
+  if (s > CURRENT_WEEK) return 'futura';
+  if (!d || (d.m1 == null && d.m2 == null && d.m3 == null)) return 'vazio';
+  const exp = expectedAt(s);
+  let ok = 0, tot = 0;
+  if (d.m1 != null) { tot++; if (d.m1 >= exp.m1 * 0.88) ok++; }
+  if (d.m2 != null) { tot++; if (d.m2 >= exp.m2 * 0.88) ok++; }
+  if (d.m3 != null) { tot++; if (d.m3 >= exp.m3 * 0.88) ok++; }
+  const r = ok / tot;
+  if (r >= 0.9) return 'ok';
+  if (r >= 0.5) return 'risco';
+  return 'atras';
+}
+
+const S_LABEL = { ok:'No ritmo', risco:'Atenção', atras:'Atrás', vazio:'—', atual:'Atual', futura:'Futura' };
+const S_CLASS  = { ok:'s-ok', risco:'s-risco', atras:'s-atras', vazio:'s-vazio', atual:'s-atual', futura:'s-futura' };
+
+function fmtNum(v, prefix) {
+  if (v == null) return '—';
+  return (prefix||'') + Number(v).toLocaleString('pt-BR');
+}
+
+// ─── OVERVIEW ────────────────────────────────────────────
+function updateOverview() {
+  let m1=200, m2=0, m3=0, _1=false, _2=false, _3=false;
+  for (let s=12; s>=1; s--) {
+    const d = DB[s];
+    if (!d) continue;
+    if (d.m1!=null && !_1) { m1=d.m1; _1=true; }
+    if (d.m2!=null && !_2) { m2=d.m2; _2=true; }
+    if (d.m3!=null && !_3) { m3=d.m3; _3=true; }
+  }
+  const p1 = Math.min(100, ((m1-200)/(2000-200))*100);
+  const p2 = Math.min(100, (m2/1500)*100);
+  const p3 = Math.min(100, (m3/200)*100);
+
+  document.getElementById('cur-m1').textContent = _1 ? m1.toLocaleString('pt-BR') : '200';
+  document.getElementById('cur-m2').textContent = 'R$' + m2.toLocaleString('pt-BR');
+  document.getElementById('cur-m3').textContent = m3.toLocaleString('pt-BR');
+  document.getElementById('bar-m1').style.width = p1+'%';
+  document.getElementById('bar-m2').style.width = p2+'%';
+  document.getElementById('bar-m3').style.width = p3+'%';
+  document.getElementById('pct-m1').textContent = Math.round(p1)+'%';
+  document.getElementById('pct-m2').textContent = Math.round(p2)+'%';
+  document.getElementById('pct-m3').textContent = Math.round(p3)+'%';
+}
+
+// ─── BUILD SEMANAS ────────────────────────────────────────
+function build() {
+  const wrap = document.getElementById('semanas-wrap');
+  wrap.innerHTML = '';
+
+  // Atualiza eyebrow com semana atual
+  document.getElementById('eyebrow-week').textContent =
+    `Ciclo 12 Semanas · OKR · Semana ${CURRENT_WEEK} de 12`;
+
+  for (let s=1; s<=12; s++) {
+    const d = DB[s] || {};
+    const exp = expectedAt(s);
+    const isCurrent = s === CURRENT_WEEK;
+    const isFuture  = s > CURRENT_WEEK;
+    const rawStatus = statusFor(s, DB[s]);
+    const status    = isCurrent ? 'atual' : rawStatus;
+
+    const el = document.createElement('div');
+    el.className = 'semana-block'
+      + (isCurrent ? ' is-active' : '')
+      + (isCurrent ? ' is-open' : '')
+      + (isFuture  ? ' is-done'  : '');
+    el.id = 'blk-'+s;
+
+    // Datas da semana
+    const wStart = new Date(CICLO_START.getTime() + (s-1)*7*24*3600*1000);
+    const wEnd   = new Date(wStart.getTime() + 6*24*3600*1000);
+    const fmtDate = d => d.toLocaleDateString('pt-BR', {day:'2-digit', month:'2-digit'});
+    const dateRange = `${fmtDate(wStart)} – ${fmtDate(wEnd)}`;
+
+    el.innerHTML = `
+      <div class="semana-header" onclick="toggle(${s})">
+        <div class="sem-left">
+          <span class="sem-num">S${String(s).padStart(2,'0')}</span>
+          <span style="font-size:11px;color:var(--muted2);display:none" class="sem-date">${dateRange}</span>
+          <div class="sem-vals">
+            <div class="sem-val-item"><div class="sem-dot"></div><span class="sem-val">${fmtNum(d.m1!=null?d.m1:null)}</span></div>
+            <div class="sem-val-item"><div class="sem-dot"></div><span class="sem-val">${d.m2!=null?'R$'+Number(d.m2).toLocaleString('pt-BR'):'—'}</span></div>
+            <div class="sem-val-item"><div class="sem-dot"></div><span class="sem-val">${fmtNum(d.m3!=null?d.m3:null)}</span></div>
+          </div>
+        </div>
+        <div class="sem-right">
+          <span style="font-size:10px;color:var(--muted2);letter-spacing:1px">${dateRange}</span>
+          <span class="status-pill ${S_CLASS[status]}">${S_LABEL[status]}</span>
+          <span class="chevron">▼</span>
+        </div>
+      </div>
+      <div class="semana-body">
+        <div class="expected-strip">
+          <span class="exp-head">Esperado S${s}</span>
+          <div class="exp-item"><span class="exp-sub">Seguidores</span><span class="exp-val">${exp.m1.toLocaleString('pt-BR')}</span></div>
+          <div class="exp-item"><span class="exp-sub">Receita</span><span class="exp-val">R$${exp.m2.toLocaleString('pt-BR')}</span></div>
+          <div class="exp-item"><span class="exp-sub">Usuários</span><span class="exp-val">${exp.m3}</span></div>
+        </div>
+        <div class="inputs-grid">
+          <div class="field">
+            <label class="field-label">KR 01 · Seguidores</label>
+            <p class="field-sub">Total acumulado no fim da semana</p>
+            <input type="number" id="f${s}-m1" placeholder="ex: 380" value="${d.m1!=null?d.m1:''}">
+          </div>
+          <div class="field">
+            <label class="field-label">KR 02 · Receita R$</label>
+            <p class="field-sub">Total acumulado no fim da semana</p>
+            <input type="number" id="f${s}-m2" placeholder="ex: 150" value="${d.m2!=null?d.m2:''}">
+          </div>
+          <div class="field">
+            <label class="field-label">KR 03 · Usuários</label>
+            <p class="field-sub">Total acumulado no fim da semana</p>
+            <input type="number" id="f${s}-m3" placeholder="ex: 18" value="${d.m3!=null?d.m3:''}">
+          </div>
+        </div>
+        <div class="field">
+          <label class="field-label" style="color:var(--muted)">Notas da semana</label>
+          <textarea id="f${s}-nota" placeholder="O que funcionou? O que travou? Aprendizados...">${d.nota||''}</textarea>
+        </div>
+        <div class="dica">${DICAS[s-1]}</div>
+        <button class="btn-save" id="btn-${s}" onclick="saveWeek(${s})">Salvar semana ${s}</button>
+      </div>
+    `;
+    wrap.appendChild(el);
+  }
+
+  updateOverview();
+}
+
+// ─── TOGGLE ───────────────────────────────────────────────
+function toggle(s) {
+  document.getElementById('blk-'+s).classList.toggle('is-open');
+}
+
+// ─── SAVE ─────────────────────────────────────────────────
+async function saveWeek(s) {
+  const btn = document.getElementById('btn-'+s);
+  btn.disabled = true;
+  btn.textContent = 'Salvando...';
+  setSyncState('syncing', 'Salvando');
+
+  const m1   = document.getElementById('f'+s+'-m1').value;
+  const m2   = document.getElementById('f'+s+'-m2').value;
+  const m3   = document.getElementById('f'+s+'-m3').value;
+  const nota = document.getElementById('f'+s+'-nota').value;
+
+  const row = {
+    semana: s,
+    m1:   m1   !== '' ? Number(m1)   : null,
+    m2:   m2   !== '' ? Number(m2)   : null,
+    m3:   m3   !== '' ? Number(m3)   : null,
+    nota: nota || null,
+  };
+
+  try {
+    await dbSave(row);
+    DB[s] = row;
+    setSyncState('synced', 'Sincronizado');
+    showToast('Semana ' + s + ' salva ✓');
+    build();
+    requestAnimationFrame(() => {
+      const el = document.getElementById('blk-'+s);
+      if (el && !el.classList.contains('is-open')) el.classList.add('is-open');
+    });
+  } catch(e) {
+    setSyncState('error', 'Erro');
+    showToast('Erro ao salvar — tente novamente', true);
+    btn.disabled = false;
+    btn.textContent = 'Salvar semana ' + s;
+  }
+}
+
+// ─── RESET ────────────────────────────────────────────────
+async function resetAll() {
+  if (!confirm('Apagar todos os registros do banco? Essa ação não pode ser desfeita.')) return;
+  setSyncState('syncing', 'Apagando');
+  try {
+    await dbDelete();
+    DB = {};
+    setSyncState('synced', 'Sincronizado');
+    showToast('Dados apagados');
+    build();
+  } catch(e) {
+    setSyncState('error', 'Erro');
+    showToast('Erro ao apagar', true);
+  }
+}
+
+// ─── INIT ─────────────────────────────────────────────────
+async function init() {
+  setSyncState('syncing', 'Conectando');
+  try {
+    const rows = await dbLoad();
+    DB = {};
+    rows.forEach(r => DB[r.semana] = r);
+    setSyncState('synced', 'Sincronizado');
+    build();
+  } catch(e) {
+    setSyncState('error', 'Sem conexão');
+    showToast('Erro ao conectar com o banco', true);
+    // fallback: renderiza vazio
+    build();
+  }
+}
+
+init();
+</script>
+</body>
+</html>
