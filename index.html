@@ -18,31 +18,32 @@
 
 :root {
   /* Fixas — não variam por tema */
-  --accent:         #B5FF2D; /* lima — reservado ao CTA de salvar */
+  --accent:         #B5FF2D; /* lima — cor primária, usada em vários elementos */
   --accent-pressed: #9AE01A;
   --ink:            #0E0F0C; /* texto sobre lima ou sobre farol — sempre escuro */
   --ok:             #22C55E;
   --risk:           #FFAA00;
   --danger:         #FF4040;
-  --info:           #4D9EFF;
 }
 :root[data-theme="dark"] {
-  --bg:        #0E0F0C;
-  --surface:   #161712;
-  --surface-2: #1F2119;
-  --border:    #2A2D22;
-  --text:      #F7F8F2;
-  --text-2:    #D4D6CE;
-  --muted:     #6B7060;
+  --bg:          #0E0F0C;
+  --surface:     #161712;
+  --surface-2:   #1F2119;
+  --border:      #2A2D22;
+  --text:        #F7F8F2;
+  --text-2:      #D4D6CE;
+  --muted:       #6B7060;
+  --accent-text: #B5FF2D; /* lima legível como texto */
 }
 :root[data-theme="light"] {
-  --bg:        #F7F8F2;
-  --surface:   #FFFFFF;
-  --surface-2: #ECEEE6;
-  --border:    #E5E7DF;
-  --text:      #0E0F0C;
-  --text-2:    #4A5040;
-  --muted:     #6B7060;
+  --bg:          #F7F8F2;
+  --surface:     #FFFFFF;
+  --surface-2:   #ECEEE6;
+  --border:      #E5E7DF;
+  --text:        #0E0F0C;
+  --text-2:      #4A5040;
+  --muted:       #6B7060;
+  --accent-text: #5A8A00; /* lima escurecida para contraste sobre fundo claro */
 }
 
 html { scroll-behavior: smooth; }
@@ -93,7 +94,7 @@ header {
   cursor: pointer;
   transition: border-color 0.2s, transform 0.15s;
 }
-.theme-toggle:hover { border-color: var(--info); transform: rotate(15deg); }
+.theme-toggle:hover { border-color: var(--accent-text); transform: rotate(15deg); }
 
 .eyebrow {
   display: flex;
@@ -101,12 +102,12 @@ header {
   gap: 12px;
   margin-bottom: 20px;
 }
-.eyebrow-line { width: 24px; height: 1px; background: var(--text-2); flex-shrink: 0; }
+.eyebrow-line { width: 24px; height: 1px; background: var(--accent); flex-shrink: 0; }
 .eyebrow-text {
   font-family: 'Barlow Condensed', sans-serif;
   font-size: 12px; font-weight: 700;
   letter-spacing: 3px; text-transform: uppercase;
-  color: var(--muted);
+  color: var(--accent-text);
 }
 
 h1 {
@@ -118,7 +119,7 @@ h1 {
   color: var(--text);
   margin-bottom: 36px;
 }
-h1 em { font-style: normal; }
+h1 em { font-style: normal; color: var(--accent-text); }
 
 .objetivo-block {
   border: 1px solid var(--border);
@@ -130,12 +131,12 @@ h1 em { font-style: normal; }
   align-items: flex-start;
   max-width: 620px;
 }
-.obj-bar { width: 3px; border-radius: 2px; background: var(--text-2); flex-shrink: 0; align-self: stretch; }
+.obj-bar { width: 3px; border-radius: 2px; background: var(--accent); flex-shrink: 0; align-self: stretch; }
 .obj-label {
   font-family: 'Barlow Condensed', sans-serif;
   font-size: 11px; font-weight: 700;
   letter-spacing: 3px; text-transform: uppercase;
-  color: var(--muted); margin-bottom: 6px;
+  color: var(--accent-text); margin-bottom: 6px;
 }
 .obj-text { font-size: 14px; color: var(--text-2); line-height: 1.5; }
 
@@ -162,17 +163,19 @@ h1 em { font-style: normal; }
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 6px;
+  overflow: hidden;
   padding: 24px;
   position: relative;
   transition: background 0.15s, border-color 0.15s;
 }
-.meta-card:hover { background: var(--surface-2); border-color: color-mix(in srgb, var(--info) 35%, var(--border)); }
+.meta-card:hover { background: var(--surface-2); border-color: color-mix(in srgb, var(--accent-text) 35%, var(--border)); }
+.meta-top-bar { position: absolute; top: 0; left: 0; right: 0; height: 3px; background: var(--accent); }
 
 .meta-eyebrow {
   font-family: 'Barlow Condensed', sans-serif;
   font-size: 11px; font-weight: 700;
   letter-spacing: 3px; text-transform: uppercase;
-  color: var(--muted); margin-bottom: 14px;
+  color: var(--accent-text); margin-bottom: 14px; margin-top: 6px;
 }
 
 .meta-value {
@@ -186,7 +189,7 @@ h1 em { font-style: normal; }
 
 .prog-bg { height: 3px; border-radius: 2px; background: var(--border); position: relative; overflow: hidden; }
 .prog-fill {
-  height: 3px; background: var(--text-2);
+  height: 3px; background: var(--accent);
   width: 0%; position: absolute; top: 0; left: 0;
   transition: width 0.7s cubic-bezier(.4,0,.2,1);
 }
@@ -195,7 +198,7 @@ h1 em { font-style: normal; }
   font-family: 'Space Grotesk', sans-serif;
   font-size: 11px; color: var(--muted); margin-top: 8px;
 }
-.prog-pct { color: var(--info); font-weight: 500; }
+.prog-pct { color: var(--accent-text); font-weight: 500; }
 
 .top-row {
   display: flex; justify-content: space-between;
@@ -243,7 +246,7 @@ h1 em { font-style: normal; }
 .loading-spinner {
   width: 16px; height: 16px;
   border: 2px solid var(--border);
-  border-top-color: var(--info);
+  border-top-color: var(--accent);
   border-radius: 50%;
   animation: spin 0.7s linear infinite;
 }
@@ -257,7 +260,7 @@ h1 em { font-style: normal; }
   margin-bottom: 10px;
   transition: border-color 0.2s;
 }
-.semana-block.is-active { border-color: var(--info); }
+.semana-block.is-active { border-color: var(--accent-text); }
 .semana-block.is-done { opacity: 0.5; }
 
 .semana-header {
@@ -277,11 +280,11 @@ h1 em { font-style: normal; }
   letter-spacing: 2px; color: var(--muted);
   white-space: nowrap; min-width: 44px;
 }
-.semana-block.is-active .sem-num { color: var(--info); }
+.semana-block.is-active .sem-num { color: var(--accent-text); }
 
 .sem-vals { display: flex; gap: 16px; flex-wrap: wrap; }
 .sem-val-item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }
-.sem-dot { width: 4px; height: 4px; border-radius: 50%; background: var(--text-2); flex-shrink: 0; }
+.sem-dot { width: 4px; height: 4px; border-radius: 50%; background: var(--accent); flex-shrink: 0; }
 .sem-val { font-family: 'Space Grotesk', sans-serif; color: var(--text-2); font-weight: 500; }
 
 .sem-right { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
@@ -297,7 +300,7 @@ h1 em { font-style: normal; }
 .s-ok     { color: var(--ink); background: var(--ok); }
 .s-risco  { color: var(--ink); background: var(--risk); }
 .s-atras  { color: var(--ink); background: var(--danger); }
-.s-atual  { color: var(--ink); background: var(--info); }
+.s-atual  { color: var(--ink); background: var(--accent); }
 .s-vazio  { color: var(--muted); border-color: var(--border); background: transparent; }
 .s-futura { color: var(--muted); border-color: var(--border); background: transparent; }
 
@@ -323,7 +326,7 @@ h1 em { font-style: normal; }
 .exp-head { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: var(--muted); white-space: nowrap; }
 .exp-item { display: flex; flex-direction: column; gap: 2px; }
 .exp-sub { font-size: 10px; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); }
-.exp-val { font-family: 'Space Grotesk', sans-serif; font-size: 15px; font-weight: 500; color: var(--info); letter-spacing: -0.3px; }
+.exp-val { font-family: 'Space Grotesk', sans-serif; font-size: 15px; font-weight: 500; color: var(--accent-text); letter-spacing: -0.3px; }
 
 .inputs-grid {
   display: grid; grid-template-columns: repeat(3, 1fr);
@@ -336,7 +339,7 @@ h1 em { font-style: normal; }
   font-family: 'Barlow Condensed', sans-serif;
   font-size: 11px; font-weight: 700;
   letter-spacing: 2px; text-transform: uppercase;
-  color: var(--muted);
+  color: var(--accent-text);
 }
 .field-sub { font-size: 11px; color: var(--muted); margin-top: -3px; line-height: 1.3; }
 
@@ -354,13 +357,13 @@ input[type="number"], textarea {
 }
 input::-webkit-outer-spin-button,
 input::-webkit-inner-spin-button { -webkit-appearance: none; }
-input:focus, textarea:focus { border-color: var(--info); }
+input:focus, textarea:focus { border-color: var(--accent); }
 textarea { resize: vertical; min-height: 64px; font-family: 'Inter', sans-serif; font-size: 13px; line-height: 1.5; }
 
 .dica {
   background: var(--bg);
   border: 1px solid var(--border);
-  border-left: 3px solid var(--info);
+  border-left: 3px solid var(--accent);
   border-radius: 6px;
   padding: 12px 16px;
   font-size: 12px; color: var(--muted);
@@ -427,14 +430,14 @@ header        { animation: fadeUp 0.4s ease both; }
     </div>
     <div class="eyebrow">
       <div class="eyebrow-line"></div>
-      <span class="eyebrow-text" id="eyebrow-week">Ciclo 12 Semanas · OKR · Carregando...</span>
+      <span class="eyebrow-text" id="eyebrow-week">Ciclo 3 · 12 Semanas · OKR · Carregando...</span>
     </div>
     <h1>Construindo<br>o <em>Grana Certa.</em></h1>
     <div class="objetivo-block">
       <div class="obj-bar"></div>
       <div>
         <p class="obj-label">Objetivo do ciclo</p>
-        <p class="obj-text">Crescer de ~530 para 4.500 usuários ativos por semana (WAU), acumular R$3.000 em receita e reduzir o tempo médio de resposta de 5,3 para 2,0 minutos.</p>
+        <p class="obj-text">Conseguir investidores para o Grana Certa: sair de 438 para 4.500 usuários ativos por semana (WAU), acumular R$3.000 em receita e reduzir o tempo médio de espera de 5,6 para 2,0 minutos.</p>
       </div>
     </div>
   </div>
@@ -446,6 +449,7 @@ header        { animation: fadeUp 0.4s ease both; }
     <div class="section-label">Key Results</div>
     <div class="metas-grid">
       <div class="meta-card">
+        <div class="meta-top-bar"></div>
         <p class="meta-eyebrow">KR 01 · Usuários</p>
         <div class="meta-value" id="cur-m1">—</div>
         <p class="meta-desc">usuários ativos por semana (WAU) · meta 4.500<br>crescimento de uso real, não de vaidade</p>
@@ -453,6 +457,7 @@ header        { animation: fadeUp 0.4s ease both; }
         <div class="prog-labels"><span class="prog-pct" id="pct-m1">—</span><span>4.500</span></div>
       </div>
       <div class="meta-card">
+        <div class="meta-top-bar"></div>
         <p class="meta-eyebrow">KR 02 · Receita</p>
         <div class="meta-value" id="cur-m2">—</div>
         <p class="meta-desc">receita acumulada · meta R$3.000<br>apenas produtos digitais do app</p>
@@ -460,6 +465,7 @@ header        { animation: fadeUp 0.4s ease both; }
         <div class="prog-labels"><span class="prog-pct" id="pct-m2">—</span><span>R$3.000</span></div>
       </div>
       <div class="meta-card">
+        <div class="meta-top-bar"></div>
         <p class="meta-eyebrow">KR 03 · Tempo médio</p>
         <div class="meta-value" id="cur-m3">—</div>
         <p class="meta-desc">tempo médio de resposta · meta 2,0 min<br>quanto menor, melhor</p>
@@ -516,10 +522,9 @@ const SUPABASE_URL = 'https://sbywtjxgkhqdeplymhdz.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNieXd0anhna2hxZGVwbHltaGR6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc2ODc3NzUsImV4cCI6MjA5MzI2Mzc3NX0.9lGvokR-HdSdZAh-G0_70_0gwA6SKEtPwrvINmQmTnU';
 const TABLE = 'okr_ciclo';
 
-// Ciclo: começa domingo 06/04/2026 (semana começa no domingo)
-// O usuário disse que o ciclo começou em 05/04/2026 (domingo)
-const CICLO_START = new Date('2026-04-05T00:00:00-03:00');
-const CICLO_END   = new Date('2026-06-27T23:59:59-03:00');
+// Ciclo 3 do ano: começa domingo 05/07/2026 (semana começa no domingo)
+const CICLO_START = new Date('2026-07-05T00:00:00-03:00');
+const CICLO_END   = new Date('2026-09-26T23:59:59-03:00');
 
 // ─── SEMANA ATUAL ─────────────────────────────────────────
 function getCurrentWeek() {
@@ -589,7 +594,7 @@ function showToast(msg, isError) {
 // ─── METAS ────────────────────────────────────────────────
 // Dicas — diretas e táticas, ligadas às metas de WAU / receita / tempo médio
 const DICAS = [
-  "<strong>Semana 1 — Baseline.</strong> Registre o tempo médio de resposta atual sem mudar nada. Esse número é a referência para medir toda melhoria daqui pra frente.",
+  "<strong>Semana 1 — Baseline conhecida.</strong> Tempo médio atual: 5,6 min, 438 WAU. Corte a etapa mais lenta do fluxo — meta da semana: ≤ 5,3 min.",
   "<strong>Semana 2 — Corte de atrito.</strong> Identifique o passo mais lento do fluxo principal e remova uma etapa. Meta da semana: tempo médio ≤ 5,0 min.",
   "<strong>Semana 3 — Retenção.</strong> Meça quantos usuários da semana 1 voltaram a usar o app. Se for baixo, o problema é produto — não aquisição.",
   "<strong>Semana 4 — Checkpoint.</strong> Compare o WAU real contra os 945 esperados. Se estiver abaixo, corte o que não gera uso recorrente.",
@@ -600,13 +605,13 @@ const DICAS = [
   "<strong>Semana 9 — Escala de aquisição.</strong> WAU esperado: 2.490. Dobre o canal que já traz o usuário com menor custo.",
   "<strong>Semana 10 — Receita composta.</strong> R$1.650 acumulado esperado. Revise o churn de pagantes antes de buscar novos usuários.",
   "<strong>Semana 11 — Reta final.</strong> Compare os 3 KRs contra a meta. Ajuste só o que estiver mais atrasado — não tudo ao mesmo tempo.",
-  "<strong>Semana 12 — Fechamento.</strong> Metas finais: 4.500 WAU, R$3.000 de receita, 2,0 min de tempo médio. Documente o resultado real, com números.",
+  "<strong>Semana 12 — Fechamento.</strong> Metas finais: 4.500 WAU, R$3.000 de receita, 2,0 min de tempo médio. Essa é a tração que vai para o pitch aos investidores — documente com números reais.",
 ];
 
-// Metas acumuladas por semana — curva customizada
+// Metas acumuladas por semana — curva customizada a partir do atual (438 WAU / R$0 / 5,6 min)
 // m1: WAU alvo · m2: receita acumulada (R$) · m3: tempo médio alvo (min, menor é melhor)
 const EXPECTED = {
-  m1: [0,  530,  645,  780,  945, 1150, 1395, 1690, 2050, 2490, 3025, 3670, 4500],
+  m1: [0,  530,  650,  790,  960, 1160, 1410, 1710, 2080, 2520, 3060, 3710, 4500],
   m2: [0,    0,    0,    0,    0,  100,  250,  450,  750, 1150, 1650, 2250, 3000],
   m3: [0,  5.3,  5.0,  4.7,  4.4,  4.1,  3.8,  3.5,  3.2,  2.9,  2.6,  2.3,  2.0],
 };
@@ -647,8 +652,9 @@ function fmtMin(v) {
 }
 
 // ─── OVERVIEW ────────────────────────────────────────────
+// Baseline atual do ciclo (antes de qualquer registro semanal): 438 WAU, R$0, 5,6 min
 function updateOverview() {
-  let m1=0, m2=0, m3=null, _1=false, _2=false, _3=false;
+  let m1=438, m2=0, m3=5.6, _1=false, _2=false, _3=false;
   for (let s=12; s>=1; s--) {
     const d = DB[s];
     if (!d) continue;
@@ -658,11 +664,11 @@ function updateOverview() {
   }
   const p1 = Math.min(100, (m1/4500)*100);
   const p2 = Math.min(100, (m2/3000)*100);
-  const p3 = _3 ? Math.min(100, Math.max(0, ((5.3-m3)/(5.3-2.0))*100)) : 0;
+  const p3 = Math.min(100, Math.max(0, ((5.6-m3)/(5.6-2.0))*100));
 
-  document.getElementById('cur-m1').textContent = _1 ? m1.toLocaleString('pt-BR') : '0';
+  document.getElementById('cur-m1').textContent = m1.toLocaleString('pt-BR');
   document.getElementById('cur-m2').textContent = 'R$' + m2.toLocaleString('pt-BR');
-  document.getElementById('cur-m3').textContent = _3 ? fmtMin(m3) : '—';
+  document.getElementById('cur-m3').textContent = fmtMin(m3);
   document.getElementById('bar-m1').style.width = p1+'%';
   document.getElementById('bar-m2').style.width = p2+'%';
   document.getElementById('bar-m3').style.width = p3+'%';
@@ -678,7 +684,7 @@ function build() {
 
   // Atualiza eyebrow com semana atual
   document.getElementById('eyebrow-week').textContent =
-    `Ciclo 12 Semanas · OKR · Semana ${CURRENT_WEEK} de 12`;
+    `Ciclo 3 · 12 Semanas · OKR · Semana ${CURRENT_WEEK} de 12`;
 
   for (let s=1; s<=12; s++) {
     const d = DB[s] || {};
