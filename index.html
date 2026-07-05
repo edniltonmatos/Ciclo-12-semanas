@@ -846,9 +846,9 @@ function renderHistory(data) {
       </div>
       <div class="week-body">
         <div class="week-values">
-          <div class="week-field"><label>Usuários (WAU)${wk.histTesp ? ' · TESP' : ''}</label><div class="display-val">${wk.m1Label}</div></div>
+          <div class="week-field"><label>Usuários (WAU)</label><div class="display-val">${wk.m1Label}</div></div>
           <div class="week-field"><label>Receita acumulada (R$)</label><div class="display-val">${wk.m2Label}</div></div>
-          <div class="week-field"><label>Tempo médio (min)${wk.histTesp ? ' · TESP' : ''}</label><div class="display-val">${wk.m3Label}</div></div>
+          <div class="week-field"><label>Tempo médio (min)</label><div class="display-val">${wk.m3Label}</div></div>
         </div>
       </div>
     </div>`;
@@ -953,9 +953,8 @@ function computeData() {
     const m1 = historyMetricAtWeek('m1', wi);
     const m2 = row.m2;
     const m3 = historyMetricAtWeek('m3', wi);
-    const histTesp = m1 != null || m3 != null;
     weeks.push({
-      n: wi, isCurrent: wi === w, isFuture: wi > w, histTesp,
+      n: wi, isCurrent: wi === w, isFuture: wi > w,
       dateRange: fmtDateShort(dateForDay(weekStartDay(wi))) + '–' + fmtDateShort(dateForDay(weekEndDay(wi))),
       statusLabel: ss.label, statusBg: ss.bg, statusColor: ss.color,
       dotUsers, dotRevenue, dotTempo,
@@ -992,14 +991,14 @@ async function init() {
     rows.forEach(r => {
       if (r.ciclo === CYCLE_N || (r.ciclo == null && CYCLE_N <= 2)) DB[r.semana] = r;
     });
-    setSyncState('syncing', 'Buscando métricas TESP');
+    setSyncState('syncing', 'Buscando métricas');
     const liveOk = await syncLiveMetrics();
     setSyncState('syncing', 'Carregando histórico');
     const histOk = await syncHistoricalMetrics();
     if (!tespConfigured()) {
-      setSyncState('synced', 'OKR conectado · configure TESP');
+      setSyncState('synced', 'OKR conectado');
     } else {
-      setSyncState('synced', liveOk || histOk ? 'Dados ao vivo (TESP)' : 'OKR conectado');
+      setSyncState('synced', liveOk || histOk ? 'Dados ao vivo' : 'OKR conectado');
     }
   } catch(e) {
     setSyncState('error', 'Sem conexão');
@@ -1011,7 +1010,7 @@ async function init() {
     const ok = await syncLiveMetrics();
     const histOk = await syncHistoricalMetrics();
     if (ok || histOk || prevLive !== LIVE.available) {
-      setSyncState('synced', ok || histOk ? 'Dados ao vivo (TESP)' : (tespConfigured() ? 'OKR conectado' : 'OKR conectado · configure TESP'));
+      setSyncState('synced', ok || histOk ? 'Dados ao vivo' : 'OKR conectado');
       render();
     }
   }, 5 * 60 * 1000);
