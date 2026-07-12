@@ -895,9 +895,55 @@ function saveRevenueEntries() {
   localStorage.setItem('gc-revenue-entries', JSON.stringify(revenueEntries));
 }
 
+function usersAtDay(d) {
+  return metricDayReader('m1', d) ?? actualAtDay(d)?.m1 ?? latestMetric('m1', weekOf(Math.max(1, d)));
+}
+function tempoAtDay(d) {
+  return metricDayReader('m3', d) ?? actualAtDay(d)?.m3 ?? latestMetric('m3', weekOf(Math.max(1, d)));
+}
+function revRealAtDay(d) {
+  const w = weekOf(Math.max(1, d));
+  if (w < CURRENT_WEEK) return DB[w]?.m2 ?? revenueUpToDay(Math.min(weekEndDay(w), d));
+  return revenueUpToDay(d);
+}
+
+function buildSummaryForDay(refDay) {
+  const w = refDay >= 1 ? weekOf(refDay) : 1;
+  const dayOfWeek = refDay >= 1 ? ((refDay - 1) % 7) + 1 : 7;
+  const remainInclWeek = 7 - dayOfWeek + 1;
+  const remainInclCycle = CYCLE_DAYS - Math.max(1, refDay) + 1;
+  const hasRevByDay = revenueEntries.some(e => e.day <= refDay) || Object.keys(DB).some(wk => DB[wk]?.m2 != null && Number(wk) <= w);
+
+  const usersRef = usersAtDay(refDay);
+  const usersPrev = usersAtDay(refDay - 1);
+  const tempoRef = tempoAtDay(refDay);
+  const revRealSemana = revRealAtDay(refDay);
+  const revRealDia = refDay >= 1 ? revenueOnDay(refDay) : 0;
+
+  const usersMetaDia = Math.max(0, (expectedAt(w).m1 - usersRef) / remainInclWeek);
+  const usersRealDia = usersRef - usersPrev;
+
+  const revMetaDia = hasRevByDay ? Math.max(0, (3000 - revRealSemana) / remainInclCycle) : 0;
+  const tempoImprovementNeeded = (tempoRef - 2.0) / remainInclCycle;
+  const tempoMetaDia = tempoRef - tempoImprovementNeeded;
+
+  return {
+    dateLabel: fmtDateShort(dateForDay(refDay)),
+    usersMetaDia, usersRealDia,
+    usersMetaSemana: expectedAt(w).m1,
+    usersRealSemana: usersRef,
+    revMetaDia, revRealDia,
+    revMetaSemana: expectedAt(w).m2,
+    revRealSemana,
+    tempoMetaDia, tempoRealDia: tempoRef,
+    tempoMetaSemana: expectedAt(w).m3,
+    tempoRealSemana: tempoRef,
+  };
+}
+
 function copySummary() {
-  if (!lastSummary) return;
-  const s = lastSummary;
+  const s = buildSummaryForDay(TODAY - 1);
+  if (!s) return;
   const text = `GRANA CERTA — ${s.dateLabel}\nUsuários   | meta dia: +${Math.round(s.usersMetaDia)} | real dia: ${s.usersRealDia >= 0 ? '+' : ''}${Math.round(s.usersRealDia)} | meta semana: ${Math.round(s.usersMetaSemana)} | real semana: ${Math.round(s.usersRealSemana)}\nReceita    | meta dia: R$${Math.round(s.revMetaDia)} | real dia: R$${Math.round(s.revRealDia)} | meta semana: R$${Math.round(s.revMetaSemana)} | real semana: R$${Math.round(s.revRealSemana)}\nTempo medio| meta dia: ${s.tempoMetaDia.toFixed(2)}min | real dia: ${s.tempoRealDia.toFixed(2)}min | meta semana: ${s.tempoMetaSemana.toFixed(2)}min | real semana: ${s.tempoRealSemana.toFixed(2)}min`;
   navigator.clipboard?.writeText(text).catch(() => {});
   const btn = document.getElementById('btn-copy');
@@ -1097,12 +1143,7 @@ function computeData() {
     { label: 'Tempo médio', metaLabel: fmtMin(tempoMetaSemana), realLabel: fmtMin(tempoRealSemana), faltaLabel: fmtMin(Math.max(0, tempoRealSemana - tempoMetaSemana)), pctLabel: Math.round(tempoPct) + '%', pctColor: pctColor(tempoPct) },
   ];
 
-  lastSummary = {
-    dateLabel: fmtDateShort(dateForDay(TODAY)),
-    usersMetaDia, usersRealDia, usersMetaSemana, usersRealSemana,
-    revMetaDia, revRealDia: revenueToday, revMetaSemana, revRealSemana,
-    tempoMetaDia, tempoRealDia: tempoToday, tempoMetaSemana, tempoRealSemana,
-  };
+  lastSummary = buildSummaryForDay(TODAY - 1);
 
   const periodOptions = ['7','14','cycle','custom'].map(key => ({
     key, label: key === '7' ? '7 dias' : key === '14' ? '14 dias' : key === 'cycle' ? 'Ciclo completo' : 'Custom',
