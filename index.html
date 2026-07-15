@@ -295,22 +295,43 @@ body {
 .week-row.is-open .week-chevron { transform: rotate(180deg); }
 .week-body { padding: 0 18px 18px; display: none; }
 .week-row.is-open .week-body { display: block; }
-.week-values { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 14px; }
-@media (max-width: 560px) { .week-values { grid-template-columns: 1fr; } }
-.week-field label {
-  font-family: Inter, sans-serif; font-weight: 600; font-size: 10px;
-  letter-spacing: 0.2em; color: var(--muted); text-transform: uppercase;
-  display: block; margin-bottom: 6px;
+.week-metrics-head, .week-metric-row {
+  display: grid; grid-template-columns: 1.3fr 1fr 1fr 1fr; gap: 8px 16px; align-items: center;
 }
-.week-field input, .week-field textarea {
-  width: 100%; background: var(--elevated); border: 1px solid var(--border);
-  border-radius: 6px; padding: 10px 12px; color: var(--text);
-  font-family: 'Space Grotesk', monospace; font-size: 14px; outline: none;
+.week-metrics-head {
+  padding-bottom: 6px;
+  font-family: Inter, sans-serif; font-weight: 600; font-size: 9px;
+  letter-spacing: 0.18em; color: var(--muted); text-transform: uppercase;
 }
-.week-field input:focus, .week-field textarea:focus { border-color: var(--accent-fill); }
-.week-field textarea { font-family: Inter, sans-serif; font-size: 13px; min-height: 56px; resize: vertical; }
-.week-field .display-val {
-  font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 20px;
+.week-metric-row {
+  padding: 8px 0; border-top: 1px solid var(--border);
+}
+.week-metric-label {
+  font-family: Inter, sans-serif; font-weight: 600; font-size: 12px; color: var(--text-2);
+}
+.week-metric-val {
+  font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 17px;
+}
+@media (max-width: 560px) {
+  .week-metrics-head { display: none; }
+  .week-metric-row {
+    grid-template-columns: 1fr 1fr 1fr;
+    grid-template-areas:
+      "label label label"
+      "meta real pct";
+    gap: 4px 12px;
+  }
+  .week-metric-label { grid-area: label; margin-bottom: 2px; }
+  .week-metric-val[data-col="Meta"] { grid-area: meta; }
+  .week-metric-val[data-col="Real"] { grid-area: real; }
+  .week-metric-val[data-col="Alcançado"] { grid-area: pct; }
+  .week-metric-val[data-col]::before {
+    content: attr(data-col);
+    display: block;
+    font-family: Inter, sans-serif; font-weight: 600; font-size: 9px;
+    letter-spacing: 0.18em; color: var(--muted); text-transform: uppercase;
+    margin-bottom: 2px;
+  }
 }
 .btn-save {
   margin-top: 14px; font-family: Inter, sans-serif; font-weight: 600;
@@ -972,7 +993,7 @@ document.getElementById('btn-copy').onclick = copySummary;
 
 function toggleWeek(w) {
   expanded[w] = !expanded[w];
-  renderHistory();
+  renderHistory(computeData());
 }
 
 function addRevenueEntry() {
@@ -1080,8 +1101,16 @@ function renderTrend(data) {
 }
 
 function renderHistory(data) {
+  if (!data?.weeks) return;
   const weeks = data.weeks.map(wk => {
     const open = expanded[wk.n] ? ' is-open' : '';
+    const metrics = (wk.metrics || []).map(m => `
+      <div class="week-metric-row">
+        <div class="week-metric-label">${m.label}</div>
+        <div class="week-metric-val" data-col="Meta">${m.metaLabel}</div>
+        <div class="week-metric-val" data-col="Real">${m.realLabel}</div>
+        <div class="week-metric-val" data-col="Alcançado" style="color:${m.pctColor}">${m.pctLabel}</div>
+      </div>`).join('');
     return `<div class="week-row${wk.isCurrent ? ' is-current' : ''}${wk.isFuture ? ' is-future' : ''}${open}" id="wk-${wk.n}">
       <div class="week-row-head" onclick="toggleWeek(${wk.n})">
         <div style="display:flex;align-items:center;gap:16px">
@@ -1095,11 +1124,13 @@ function renderHistory(data) {
         </div>
       </div>
       <div class="week-body">
-        <div class="week-values">
-          <div class="week-field"><label>Usuários (WAU)</label><div class="display-val">${wk.m1Label}</div></div>
-          <div class="week-field"><label>Receita acumulada (R$)</label><div class="display-val">${wk.m2Label}</div></div>
-          <div class="week-field"><label>Tempo médio (min)</label><div class="display-val">${wk.m3Label}</div></div>
+        <div class="week-metrics-head">
+          <div></div>
+          <div>Meta</div>
+          <div>Real</div>
+          <div>Alcançado</div>
         </div>
+        ${metrics}
       </div>
     </div>`;
   }).join('');
@@ -1183,30 +1214,69 @@ function computeData() {
     const status = wi < w ? 'done' : wi === w ? 'current' : 'future';
     const ss = statusStyles[status];
     const row = DB[wi] || {};
+    const fullEndDay = weekEndDay(wi);
+    const metaFull = expectedAt(wi);
     let dotUsers = 'var(--border)', dotRevenue = 'var(--border)', dotTempo = 'var(--border)';
+    let metrics;
+    const cf = p => { const tr = tierOf(p); return tr === 'success' ? 'var(--ok)' : tr === 'warning' ? 'var(--risk)' : 'var(--danger)'; };
+
     if (status !== 'future') {
-      const endDay = Math.min(weekEndDay(wi), TODAY);
-      const uAct = historyMetricAtWeek('m1', wi) ?? BASELINE.m1;
-      const tAct = historyMetricAtWeek('m3', wi) ?? BASELINE.m3;
-      const rAct = row.m2 ?? revenueUpToDay(endDay);
+      const endDay = Math.min(fullEndDay, TODAY);
+      const uAct = wi === w
+        ? (liveMetric('m1') ?? historyMetricAtWeek('m1', wi))
+        : historyMetricAtWeek('m1', wi);
+      const tAct = wi === w
+        ? (liveMetric('m3') ?? historyMetricAtWeek('m3', wi))
+        : historyMetricAtWeek('m3', wi);
+      const rAct = row.m2 != null ? row.m2 : (hasEntries ? revenueUpToDay(endDay) : null);
       const exp = expectedAtDay(endDay);
-      const cf = p => { const tr = tierOf(p); return tr === 'success' ? 'var(--ok)' : tr === 'warning' ? 'var(--risk)' : 'var(--danger)'; };
-      dotUsers = historyMetricAtWeek('m1', wi) != null ? cf((uAct / exp.m1) * 100) : 'var(--border)';
-      dotTempo = historyMetricAtWeek('m3', wi) != null ? cf((exp.m3 / tAct) * 100) : 'var(--border)';
-      dotRevenue = (hasEntries || row.m2 != null) && exp.m2 > 0 ? cf((rAct / exp.m2) * 100) : 'var(--border)';
+      const hasUsers = uAct != null;
+      const hasTempo = tAct != null;
+      const hasRev = hasEntries || row.m2 != null;
+      const pu = hasUsers && exp.m1 > 0 ? (uAct / exp.m1) * 100 : null;
+      const ptp = hasTempo && tAct > 0 ? (exp.m3 / tAct) * 100 : null;
+      const pr = hasRev && exp.m2 > 0 ? (rAct / exp.m2) * 100 : null;
+      dotUsers = pu != null ? cf(pu) : 'var(--border)';
+      dotTempo = ptp != null ? cf(ptp) : 'var(--border)';
+      dotRevenue = pr != null ? cf(pr) : 'var(--border)';
+      metrics = [
+        {
+          label: 'Usuários (WAU)',
+          metaLabel: fmtInt(exp.m1),
+          realLabel: hasUsers ? fmtInt(uAct) : '—',
+          pctLabel: pu != null ? Math.round(pu) + '%' : '—',
+          pctColor: pu != null ? cf(pu) : 'var(--muted)',
+        },
+        {
+          label: 'Receita (R$)',
+          metaLabel: fmtMoney(exp.m2),
+          realLabel: hasRev ? fmtMoney(rAct) : '—',
+          pctLabel: pr != null ? Math.round(pr) + '%' : '—',
+          pctColor: pr != null ? cf(pr) : 'var(--muted)',
+        },
+        {
+          label: 'Tempo médio',
+          metaLabel: fmtMin(exp.m3),
+          realLabel: hasTempo ? fmtMin(tAct) : '—',
+          pctLabel: ptp != null ? Math.round(ptp) + '%' : '—',
+          pctColor: ptp != null ? cf(ptp) : 'var(--muted)',
+        },
+      ];
+    } else {
+      metrics = [
+        { label: 'Usuários (WAU)', metaLabel: fmtInt(metaFull.m1), realLabel: '—', pctLabel: '—', pctColor: 'var(--muted)' },
+        { label: 'Receita (R$)', metaLabel: fmtMoney(metaFull.m2), realLabel: '—', pctLabel: '—', pctColor: 'var(--muted)' },
+        { label: 'Tempo médio', metaLabel: fmtMin(metaFull.m3), realLabel: '—', pctLabel: '—', pctColor: 'var(--muted)' },
+      ];
     }
+
     if (expanded[wi] === undefined && wi === w) expanded[wi] = true;
-    const m1 = historyMetricAtWeek('m1', wi);
-    const m2 = row.m2;
-    const m3 = historyMetricAtWeek('m3', wi);
     weeks.push({
       n: wi, isCurrent: wi === w, isFuture: wi > w,
       dateRange: fmtDateShort(dateForDay(weekStartDay(wi))) + '–' + fmtDateShort(dateForDay(weekEndDay(wi))),
       statusLabel: ss.label, statusBg: ss.bg, statusColor: ss.color,
       dotUsers, dotRevenue, dotTempo,
-      m1Label: m1 != null ? fmtInt(m1) : '—',
-      m2Label: m2 != null ? fmtMoney(m2) : '—',
-      m3Label: m3 != null ? fmtMin(m3) : '—',
+      metrics,
     });
   }
 
