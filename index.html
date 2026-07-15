@@ -472,12 +472,16 @@ function metricsPeriod() {
   return { inicio: start.toISOString(), fim: end.toISOString() };
 }
 function dayRollingPeriodBounds(d) {
-  return {
-    inicio: dateForDay(d - 6).toISOString(),
-    fim: d === TODAY
-      ? new Date().toISOString()
-      : new Date(dateForDay(d).getTime() + 86400000).toISOString(),
-  };
+  // Hoje: janela rolante de 7×24h até agora (ex.: segunda 11h → segunda passada 11h).
+  // Dias fechados: WAU como estava às 23:59:59 daquele dia (7×24h até meia-noite seguinte).
+  if (d === TODAY) {
+    const fim = new Date();
+    const inicio = new Date(fim.getTime() - WAU_PERIOD_DAYS * 86400000);
+    return { inicio: inicio.toISOString(), fim: fim.toISOString() };
+  }
+  const fim = new Date(dateForDay(d).getTime() + 86400000);
+  const inicio = new Date(fim.getTime() - WAU_PERIOD_DAYS * 86400000);
+  return { inicio: inicio.toISOString(), fim: fim.toISOString() };
 }
 function rollingCacheKey(d, bounds) {
   return `roll:d${d}:${bounds.inicio}:${bounds.fim}`;
@@ -530,31 +534,38 @@ function expectedAtDay(d) {
   };
 }
 
-function prevWeekValues(w) {
-  if (w <= 1) return { ...BASELINE };
-  const d = DB[w - 1];
-  return {
-    m1: d?.m1 ?? BASELINE.m1,
-    m2: d?.m2 ?? BASELINE.m2,
-    m3: d?.m3 ?? BASELINE.m3,
-  };
+/** Métrica real no dia d — sem interpolar entre semanas. */
+function actualAtDay(d) {
+  if (d > TODAY || d < 1) return null;
+  const rev = DB[weekOf(d)]?.m2 ?? revenueUpToDay(d);
+  if (d === TODAY && LIVE.available && (LIVE.m1 != null || LIVE.m3 != null)) {
+    return { m1: LIVE.m1, m3: LIVE.m3, m2: rev };
+  }
+  const dayM = DAY_METRICS[d];
+  if (dayM && (dayM.m1 != null || dayM.m3 != null)) {
+    return { m1: dayM.m1 ?? null, m3: dayM.m3 ?? null, m2: rev };
+  }
+  if (d === TODAY) {
+    return {
+      m1: latestMetric('m1', weekOf(d)),
+      m3: latestMetric('m3', weekOf(d)),
+      m2: rev,
+    };
+  }
+  return null;
 }
 
-function actualAtDay(d) {
-  if (d > TODAY) return null;
-  const w = weekOf(d);
-  const row = DB[w];
-  const liveRow = w === CURRENT_WEEK && LIVE.available
-    ? { m1: LIVE.m1, m3: LIVE.m3, m2: row?.m2 ?? null }
-    : row;
-  if (!liveRow || (liveRow.m1 == null && liveRow.m3 == null)) return null;
-  const prev = prevWeekValues(w);
-  const frac = (d - weekStartDay(w) + 1) / 7;
-  return {
-    m1: liveRow.m1 != null ? prev.m1 + (liveRow.m1 - prev.m1) * frac : null,
-    m2: liveRow.m2 != null ? liveRow.m2 : revenueUpToDay(d),
-    m3: liveRow.m3 != null ? prev.m3 + (liveRow.m3 - prev.m3) * frac : null,
-  };
+/** WAU / tempo medidos agora (últimos 7×24h). */
+function liveMetric(key) {
+  if (LIVE.available && LIVE[key] != null) return LIVE[key];
+  return dayMetricAt(key, TODAY);
+}
+
+/** WAU / tempo como estavam no fim do dia d (23:59:59). */
+function eodMetric(key, d) {
+  if (d < 1) return null;
+  if (d >= TODAY) return liveMetric(key);
+  return dayMetricAt(key, d);
 }
 
 function latestMetric(key, upToWeek) {
@@ -637,9 +648,10 @@ function metricDayReader(key, d) {
     return revenueUpToDay(d);
   }
   if (d > TODAY) return expectedForKey(key, d);
+  // Hoje: prioriza live (janela rolante até agora) para bater com REAL SEMANA.
+  if (d === TODAY && LIVE.available && LIVE[key] != null) return LIVE[key];
   const val = dayMetricAt(key, d);
   if (val != null) return val;
-  if (d === TODAY && LIVE.available && LIVE[key] != null) return LIVE[key];
   return BASELINE[key];
 }
 
@@ -895,10 +907,12 @@ function saveRevenueEntries() {
 }
 
 function usersAtDay(d) {
-  return metricDayReader('m1', d) ?? actualAtDay(d)?.m1 ?? latestMetric('m1', weekOf(Math.max(1, d)));
+  if (d >= TODAY) return liveMetric('m1') ?? latestMetric('m1', weekOf(Math.max(1, d)));
+  return eodMetric('m1', d) ?? actualAtDay(d)?.m1 ?? latestMetric('m1', weekOf(Math.max(1, d)));
 }
 function tempoAtDay(d) {
-  return metricDayReader('m3', d) ?? actualAtDay(d)?.m3 ?? latestMetric('m3', weekOf(Math.max(1, d)));
+  if (d >= TODAY) return liveMetric('m3') ?? latestMetric('m3', weekOf(Math.max(1, d)));
+  return eodMetric('m3', d) ?? actualAtDay(d)?.m3 ?? latestMetric('m3', weekOf(Math.max(1, d)));
 }
 function revRealAtDay(d) {
   const w = weekOf(Math.max(1, d));
@@ -1101,17 +1115,19 @@ function computeData() {
   const remainInclCycle = CYCLE_DAYS - TODAY + 1;
   const hasEntries = revenueEntries.length > 0;
 
-  const usersToday = actualAtDay(TODAY)?.m1 ?? latestMetric('m1', w);
-  const usersYesterday = actualAtDay(TODAY - 1)?.m1 ?? latestMetric('m1', Math.max(1, w - 1));
-  const tempoToday = actualAtDay(TODAY)?.m3 ?? latestMetric('m3', w);
+  // REAL SEMANA = WAU dos últimos 7×24h até agora (sem interpolar).
+  const usersToday = liveMetric('m1') ?? latestMetric('m1', w);
+  // REAL HOJE = WAU agora − WAU no fim de ontem (23:59:59).
+  const usersYesterdayEod = eodMetric('m1', TODAY - 1);
+  const tempoToday = liveMetric('m3') ?? latestMetric('m3', w);
   const revenueCum = revenueUpToDay(TODAY);
   const revenueToday = revenueOnDay(TODAY);
   const weekRevFromDb = DB[w]?.m2;
   const revRealSemana = weekRevFromDb != null ? weekRevFromDb : revenueCum;
 
   const usersMetaDia = Math.max(0, (expectedAt(w).m1 - usersToday) / remainInclWeek);
-  const usersRealDia = usersToday - usersYesterday;
-  const usersBadge = usersRealDia >= usersMetaDia ? 'success' : 'danger';
+  const usersRealDia = usersYesterdayEod != null ? usersToday - usersYesterdayEod : 0;
+  const usersBadge = usersYesterdayEod == null ? 'neutral' : (usersRealDia >= usersMetaDia ? 'success' : 'danger');
 
   const revMetaDia = hasEntries || weekRevFromDb != null ? Math.max(0, (3000 - revRealSemana) / remainInclCycle) : 0;
   const revBadge = !hasEntries && weekRevFromDb == null ? 'neutral' : (revenueToday >= revMetaDia ? 'success' : 'danger');
@@ -1122,7 +1138,7 @@ function computeData() {
 
   const bU = badgeStyle(usersBadge), bR = badgeStyle(revBadge), bT = badgeStyle(tempoBadge);
   const todayCards = [
-    { label: 'Usuários (WAU)', metaLabel: '+' + Math.round(usersMetaDia), realLabel: (usersRealDia >= 0 ? '+' : '') + Math.round(usersRealDia), badgeBg: bU.bg, badgeColor: bU.color, badgeLabel: bU.label },
+    { label: 'Usuários (WAU)', metaLabel: '+' + Math.round(usersMetaDia), realLabel: usersYesterdayEod == null ? '—' : ((usersRealDia >= 0 ? '+' : '') + Math.round(usersRealDia)), badgeBg: bU.bg, badgeColor: bU.color, badgeLabel: bU.label },
     { label: 'Receita', metaLabel: hasEntries || weekRevFromDb != null ? fmtMoney(revMetaDia) : '—', realLabel: hasEntries ? fmtMoney(revenueToday) : (weekRevFromDb != null ? fmtMoney(revenueToday) : '—'), badgeBg: bR.bg, badgeColor: bR.color, badgeLabel: bR.label },
     { label: 'Tempo médio', metaLabel: fmtMin(tempoMetaDia), realLabel: fmtMin(tempoToday), badgeBg: bT.bg, badgeColor: bT.color, badgeLabel: bT.label },
   ];
