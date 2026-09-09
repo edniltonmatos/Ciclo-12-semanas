@@ -452,6 +452,7 @@ let HIST_METRICS = {};
 let DAY_METRICS = {};
 const HIST_CACHE_KEY = 'gc-hist-metrics-v1';
 const DAY_CACHE_KEY = 'gc-day-metrics-v2';
+const OKR_DB_CACHE_KEY = 'gc-okr-db-v1';
 let revenueEntries = JSON.parse(localStorage.getItem('gc-revenue-entries') || '[]');
 let expanded = {};
 let trendPeriod = localStorage.getItem('gc-trend-period') || '14';
@@ -810,7 +811,19 @@ const tespHeaders = {
   Authorization: 'Bearer ' + TESP_SUPABASE_KEY,
   'Content-Type': 'application/json',
 };
-async function dbLoad() {
+function loadOkrDbCache() {
+  try { return JSON.parse(localStorage.getItem(OKR_DB_CACHE_KEY) || '[]'); } catch (_) { return []; }
+}
+function saveOkrDbCache(rows) {
+  try { localStorage.setItem(OKR_DB_CACHE_KEY, JSON.stringify(rows)); } catch (_) {}
+}
+function upsertOkrDbCache(row) {
+  const rows = loadOkrDbCache().filter(r => !(r.semana === row.semana && (r.ciclo ?? CYCLE_N) === (row.ciclo ?? CYCLE_N)));
+  rows.push({ ...row, ciclo: row.ciclo ?? CYCLE_N });
+  saveOkrDbCache(rows);
+  return rows;
+}
+async function dbLoadRemote() {
   let r = await fetch(`${OKR_SUPABASE_URL}/rest/v1/${TABLE}?select=*&ciclo=eq.${CYCLE_N}&order=semana.asc`, { headers: okrHeaders });
   if (!r.ok) {
     r = await fetch(`${OKR_SUPABASE_URL}/rest/v1/${TABLE}?select=*&order=semana.asc`, { headers: okrHeaders });
@@ -818,23 +831,39 @@ async function dbLoad() {
   }
   return r.json();
 }
+/** Carrega OKR remoto; se falhar, usa cache local. Nunca derruba o init. */
+async function dbLoad() {
+  try {
+    const rows = await dbLoadRemote();
+    saveOkrDbCache(rows);
+    return { rows, remoteOk: true };
+  } catch (_) {
+    return { rows: loadOkrDbCache(), remoteOk: false };
+  }
+}
 async function dbSave(row) {
   const payload = { ...row, ciclo: CYCLE_N, updated_at: new Date().toISOString() };
-  let r = await fetch(`${OKR_SUPABASE_URL}/rest/v1/${TABLE}`, {
-    method: 'POST',
-    headers: { ...okrHeaders, Prefer: 'resolution=merge-duplicates,return=representation' },
-    body: JSON.stringify(payload),
-  });
-  if (!r.ok && payload.ciclo != null) {
-    const { ciclo, ...legacy } = payload;
-    r = await fetch(`${OKR_SUPABASE_URL}/rest/v1/${TABLE}`, {
+  upsertOkrDbCache(payload);
+  try {
+    let r = await fetch(`${OKR_SUPABASE_URL}/rest/v1/${TABLE}`, {
       method: 'POST',
       headers: { ...okrHeaders, Prefer: 'resolution=merge-duplicates,return=representation' },
-      body: JSON.stringify(legacy),
+      body: JSON.stringify(payload),
     });
+    if (!r.ok && payload.ciclo != null) {
+      const { ciclo, ...legacy } = payload;
+      r = await fetch(`${OKR_SUPABASE_URL}/rest/v1/${TABLE}`, {
+        method: 'POST',
+        headers: { ...okrHeaders, Prefer: 'resolution=merge-duplicates,return=representation' },
+        body: JSON.stringify(legacy),
+      });
+    }
+    if (!r.ok) throw new Error('save');
+    return r.json();
+  } catch (e) {
+    // Projeto OKR offline: mantém cache local e segue sem quebrar métricas.
+    return [payload];
   }
-  if (!r.ok) throw new Error('save');
-  return r.json();
 }
 async function fetchMetricsForPeriod(inicio, fim) {
   if (!tespConfigured()) return null;
@@ -1321,7 +1350,7 @@ async function init() {
   if (!customEnd) customEnd = isoForDay(TODAY);
   setSyncState('syncing', 'Conectando');
   try {
-    const rows = await dbLoad();
+    const { rows, remoteOk: okrRemoteOk } = await dbLoad();
     DB = {};
     rows.forEach(r => {
       if (r.ciclo === CYCLE_N || (r.ciclo == null && CYCLE_N <= 2)) DB[r.semana] = r;
@@ -1331,10 +1360,18 @@ async function init() {
     setSyncState('syncing', 'Carregando histórico');
     const histOk = await syncHistoricalMetrics();
     const rollOk = await syncRollingDayMetrics(TODAY - 14, TODAY);
-    if (!tespConfigured()) {
+    const metricsOk = liveOk || histOk || rollOk;
+    if (metricsOk) {
+      setSyncState('synced', okrRemoteOk ? 'Dados ao vivo' : 'Dados ao vivo · OKR offline');
+      if (!okrRemoteOk) showToast('OKR offline — usando cache local');
+    } else if (okrRemoteOk) {
       setSyncState('synced', 'OKR conectado');
+    } else if (rows.length) {
+      setSyncState('error', 'Sem conexão');
+      showToast('Sem conexão — cache local', true);
     } else {
-      setSyncState('synced', liveOk || histOk || rollOk ? 'Dados ao vivo' : 'OKR conectado');
+      setSyncState('error', 'Sem conexão');
+      showToast('Erro ao conectar', true);
     }
   } catch(e) {
     setSyncState('error', 'Sem conexão');
