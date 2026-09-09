@@ -676,6 +676,26 @@ function metricDayReader(key, d) {
   return BASELINE[key];
 }
 
+/** Métrica real por semana (ciclo): LIVE → HIST → DB. Sem baseline forçado. */
+function metricWeekReader(key, wk) {
+  if (wk < 1) return key === 'm2' ? 0 : BASELINE[key];
+  if (wk > CURRENT_WEEK) return null;
+  if (key === 'm2') {
+    const row = DB[wk];
+    if (row?.m2 != null) return row.m2;
+    const endDay = Math.min(weekEndDay(wk), TODAY);
+    return revenueEntries.length > 0 ? revenueUpToDay(endDay) : null;
+  }
+  if (wk === CURRENT_WEEK) {
+    const live = liveMetric(key);
+    if (live != null) return live;
+  }
+  const hist = historyMetricAtWeek(key, wk);
+  if (hist != null) return hist;
+  if (DB[wk]?.[key] != null) return DB[wk][key];
+  return null;
+}
+
 const TREND_METRICS = {
   users: { key: 'm1', label: 'Usuários (WAU)', fmt: n => fmtInt(n) },
   revenue: { key: 'm2', label: 'Receita acumulada', fmt: n => fmtMoney(n) },
@@ -700,17 +720,16 @@ function buildChart(label, key, hasData, axisFmt, weekly) {
     const maxWeek = Math.min(12, weekOf(TODAY));
     realPts = [];
     for (let wk = 0; wk <= maxWeek; wk++) {
-      const day = wk === 0 ? 0 : Math.min(weekEndDay(wk), TODAY);
-      realPts.push({ x: wk, y: metricDayReader(key, day) });
+      const y = metricWeekReader(key, wk);
+      if (y == null) continue;
+      realPts.push({ x: wk, y });
     }
     metaPts = [];
     for (let wk = 1; wk <= 12; wk++) metaPts.push({ x: wk, y: expectedForKey(key, weekEndDay(wk)) });
-    const regPts = [];
-    for (let d = TODAY - 7; d <= TODAY; d++) regPts.push({ x: d, y: metricDayReader(key, d) });
-    const reg = linreg(regPts);
+    const reg = linreg(realPts.length >= 2 ? realPts : metaPts);
     projPts = [
-      { x: 1, y: reg.slope * weekEndDay(1) + reg.intercept },
-      { x: 12, y: reg.slope * weekEndDay(12) + reg.intercept },
+      { x: 1, y: reg.slope * 1 + reg.intercept },
+      { x: 12, y: reg.slope * 12 + reg.intercept },
     ];
     xTicks = [];
     for (let wk = 0; wk <= 12; wk++) xTicks.push({ x: wk, label: 'S' + wk, isToday: wk === weekOf(TODAY) });
