@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="theme-color" content="#0E0F0C" media="(prefers-color-scheme: dark)">
 <meta name="theme-color" content="#F7F8F2" media="(prefers-color-scheme: light)">
-<meta name="description" content="Acompanhamento OKR do Ciclo 3 — Grana Certa · 12 semanas">
+<meta name="description" content="Acompanhamento OKR do Ciclo 4 — Grana Certa · 12 semanas">
 <title>Grana Certa — Ciclo 12 Semanas</title>
 <link rel="icon" type="image/svg+xml" href="app-icon-512.svg">
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;700;800&family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
@@ -379,7 +379,7 @@ body {
     </div>
     <div class="header-wordmark"><div class="w1">GRANA</div><div class="w2">CERTA</div></div>
     <div class="header-divider"></div>
-    <div class="header-cycle" id="header-cycle">Ciclo 3 · Semana 1 de 12 · <em>faltam 84 dias</em></div>
+    <div class="header-cycle" id="header-cycle">Ciclo 4 · Semana 1 de 12 · <em>faltam 84 dias</em></div>
   </div>
   <div class="header-right">
     <div class="sync-pill"><div class="sync-dot" id="sync-dot"></div><span id="sync-label">Conectando</span></div>
@@ -397,7 +397,7 @@ body {
 <div class="main">
   <div class="obj-row">
     <h1 class="obj-h1">Construindo o <em>Grana Certa.</em></h1>
-    <p class="obj-summary">Conseguir investidores para o meu app</p>
+    <p class="obj-summary">Conseguir monetizar o app</p>
   </div>
 
   <section class="mt-36" id="sec-hoje"></section>
@@ -435,9 +435,10 @@ const TESP_SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 const TABLE = 'okr_ciclo';
 const LIVE_METRICS_RPC = 'get_okr_live_metrics';
 const WAU_PERIOD_DAYS = 7;
-const CYCLE_N = 3;
+const CYCLE_N = 4;
 const CYCLE_DAYS = 84;
-const CICLO_START = new Date('2026-07-05T00:00:00-03:00');
+const CICLO_START = new Date('2026-10-04T00:00:00-03:00');
+const WEEK0_START = new Date('2026-09-27T00:00:00-03:00');
 const BASELINE = { m1: 438, m2: 0, m3: 5.6 };
 
 const EXPECTED = {
@@ -450,10 +451,11 @@ let DB = {};
 let LIVE = { m1: null, m3: null, updatedAt: null, available: false };
 let HIST_METRICS = {};
 let DAY_METRICS = {};
-const HIST_CACHE_KEY = 'gc-hist-metrics-v1';
-const DAY_CACHE_KEY = 'gc-day-metrics-v2';
-const OKR_DB_CACHE_KEY = 'gc-okr-db-v1';
-let revenueEntries = JSON.parse(localStorage.getItem('gc-revenue-entries') || '[]');
+const HIST_CACHE_KEY = 'gc-hist-metrics-c4';
+const DAY_CACHE_KEY = 'gc-day-metrics-c4';
+const OKR_DB_CACHE_KEY = 'gc-okr-db-c4';
+const REVENUE_CACHE_KEY = 'gc-revenue-entries-c4';
+let revenueEntries = JSON.parse(localStorage.getItem(REVENUE_CACHE_KEY) || '[]');
 let expanded = {};
 let trendPeriod = localStorage.getItem('gc-trend-period') || '14';
 let trendMetric = localStorage.getItem('gc-trend-metric') || 'users';
@@ -465,7 +467,7 @@ let copyTimer;
 
 function getCurrentWeek() {
   const diff = Date.now() - CICLO_START.getTime();
-  if (diff < 0) return 1;
+  if (diff < 0) return 0;
   return Math.min(Math.max(Math.floor(diff / (7 * 86400000)) + 1, 1), 12);
 }
 function getTodayDay() {
@@ -479,6 +481,16 @@ function weekOf(d) { return Math.ceil(d / 7); }
 function weekStartDay(w) { return (w - 1) * 7 + 1; }
 function weekEndDay(w) { return Math.min(w * 7, CYCLE_DAYS); }
 function dateForDay(d) { return new Date(CICLO_START.getTime() + (d - 1) * 86400000); }
+function weekRangeLabel(w) {
+  if (w === 0) {
+    const end = new Date(CICLO_START.getTime() - 86400000);
+    return fmtDateShort(WEEK0_START) + '–' + fmtDateShort(end);
+  }
+  return fmtDateShort(dateForDay(weekStartDay(w))) + '–' + fmtDateShort(dateForDay(weekEndDay(w)));
+}
+function weekMeta(w) {
+  return w === 0 ? { m1: BASELINE.m1, m2: BASELINE.m2, m3: BASELINE.m3 } : expectedAt(w);
+}
 function fmtDateShort(dt) { return String(dt.getDate()).padStart(2,'0') + '/' + String(dt.getMonth()+1).padStart(2,'0'); }
 function isoForDay(d) {
   const dt = dateForDay(d);
@@ -518,6 +530,11 @@ function dayMetricAt(key, d) {
   return DAY_METRICS[d]?.[key] ?? null;
 }
 function weekPeriodBounds(w) {
+  if (w === 0) {
+    if (Date.now() < WEEK0_START.getTime()) return null;
+    const fimMs = CURRENT_WEEK > 0 ? CICLO_START.getTime() : Math.min(Date.now(), CICLO_START.getTime());
+    return { inicio: WEEK0_START.toISOString(), fim: new Date(fimMs).toISOString() };
+  }
   const startDay = weekStartDay(w);
   const endDay = Math.min(weekEndDay(w), TODAY);
   if (startDay > TODAY) return null;
@@ -677,23 +694,25 @@ function metricDayReader(key, d) {
   return BASELINE[key];
 }
 
-/** Métrica real por semana (ciclo): LIVE → HIST → DB. Sem baseline forçado. */
+/** Métrica real por semana (ciclo): LIVE → HIST → DB. Semana 0 cai no baseline se ainda não houver leitura. */
 function metricWeekReader(key, wk) {
-  if (wk < 1) return key === 'm2' ? 0 : BASELINE[key];
+  if (wk < 0) return key === 'm2' ? 0 : BASELINE[key];
   if (wk > CURRENT_WEEK) return null;
   if (key === 'm2') {
     const row = DB[wk];
     if (row?.m2 != null) return row.m2;
+    if (wk === 0) return 0;
     const endDay = Math.min(weekEndDay(wk), TODAY);
     return revenueEntries.length > 0 ? revenueUpToDay(endDay) : null;
   }
-  if (wk === CURRENT_WEEK) {
+  if (wk === CURRENT_WEEK && wk > 0) {
     const live = liveMetric(key);
     if (live != null) return live;
   }
   const hist = historyMetricAtWeek(key, wk);
   if (hist != null) return hist;
   if (DB[wk]?.[key] != null) return DB[wk][key];
+  if (wk === 0) return BASELINE[key];
   return null;
 }
 
@@ -726,6 +745,7 @@ function buildChart(label, key, hasData, axisFmt, weekly) {
       realPts.push({ x: wk, y });
     }
     metaPts = [];
+    metaPts.push({ x: 0, y: key === 'm2' ? 0 : BASELINE[key] });
     for (let wk = 1; wk <= 12; wk++) metaPts.push({ x: wk, y: expectedForKey(key, weekEndDay(wk)) });
     const reg = linreg(realPts.length >= 2 ? realPts : metaPts);
     projPts = [
@@ -889,8 +909,9 @@ async function syncHistoricalMetrics() {
   if (!tespConfigured()) return false;
   const cache = loadHistCache();
   let cacheUpdated = false;
-  await Promise.all(Array.from({ length: CURRENT_WEEK }, (_, i) => {
-    const wi = i + 1;
+  const weeks = [];
+  for (let wi = 0; wi <= CURRENT_WEEK; wi++) weeks.push(wi);
+  await Promise.all(weeks.map(wi => {
     const bounds = weekPeriodBounds(wi);
     if (!bounds) return Promise.resolve();
     const key = histCacheKey(wi, bounds);
@@ -972,7 +993,7 @@ function showToast(msg, err) {
 }
 
 function saveRevenueEntries() {
-  localStorage.setItem('gc-revenue-entries', JSON.stringify(revenueEntries));
+  localStorage.setItem(REVENUE_CACHE_KEY, JSON.stringify(revenueEntries));
 }
 
 function usersAtDay(d) {
@@ -1114,17 +1135,17 @@ function renderTrend(data) {
   if (ch.empty) {
     chartBody = `<div class="chart-empty">sem dados suficientes<br>aguardando 1º lançamento</div>`;
   } else {
-    const gridLines = ch.xTicks.map(xt => `<line x1="${xt.px}" y1="10" x2="${xt.px}" y2="${ch.plotBottom}" stroke="${xt.lineStroke}" stroke-width="${xt.lineWidth}"/>`).join('');
+    const gridLines = ch.xTicks.map(xt => `<line x1="${xt.px}" y1="10" x2="${xt.px}" y2="${ch.plotBottom}" stroke="${xt.lineStroke}" stroke-width="${xt.lineWidth}" vector-effect="non-scaling-stroke"/>`).join('');
     const dots = ch.realDots.map(rd => `<circle cx="${rd.cx}" cy="${rd.cy}" r="3" fill="var(--text)"/>`).join('');
-    const xLabels = ch.xTicks.map(xt => `<div class="chart-axis-x${xt.isToday ? ' is-today' : ''}" style="left:${xt.leftPct}%">${xt.label}</div>`).join('');
+    const xLabels = ch.xTicks.map(xt => `<text data-x="${xt.px}" x="0" y="0" text-anchor="middle" fill="${xt.isToday ? 'var(--accent)' : 'var(--muted)'}" font-family="Space Grotesk, monospace" font-size="10" font-weight="${xt.isToday ? 700 : 400}">${xt.label}</text>`).join('');
     const yLabels = ch.yTicks.map(yt => `<div class="chart-axis-y" style="top:${yt.topPct}%">${yt.label}</div>`).join('');
     const valueLabels = ch.realLabels.map(rl => `<div class="chart-real-label" style="left:${rl.leftPct}%;top:${rl.labelTopPct}%">${rl.label}</div>`).join('');
     chartBody = `<div class="chart-wrap">
-      <svg viewBox="0 0 900 320" width="100%" height="320">${gridLines}
-        <path d="${ch.metaPath}" fill="none" stroke="var(--muted)" stroke-width="2" stroke-dasharray="5 4"/>
-        <path d="${ch.projPath}" fill="none" stroke="var(--accent-fill)" stroke-width="2" stroke-dasharray="2 4"/>
-        <path d="${ch.realPath}" fill="none" stroke="var(--text)" stroke-width="2.5"/>${dots}
-      </svg>${xLabels}${yLabels}${valueLabels}
+      <svg viewBox="0 0 900 320" width="100%" height="320" preserveAspectRatio="none">${gridLines}
+        <path d="${ch.metaPath}" fill="none" stroke="var(--muted)" stroke-width="2" stroke-dasharray="5 4" vector-effect="non-scaling-stroke"/>
+        <path d="${ch.projPath}" fill="none" stroke="var(--accent-fill)" stroke-width="2" stroke-dasharray="2 4" vector-effect="non-scaling-stroke"/>
+        <path d="${ch.realPath}" fill="none" stroke="var(--text)" stroke-width="2.5" vector-effect="non-scaling-stroke"/>${dots}${xLabels}
+      </svg>${yLabels}${valueLabels}
     </div>`;
   }
   document.getElementById('sec-trend').innerHTML = `
@@ -1146,7 +1167,20 @@ function renderTrend(data) {
   const cs = document.getElementById('custom-start'), ce = document.getElementById('custom-end');
   if (cs) cs.onchange = e => { customStart = e.target.value; localStorage.setItem('gc-custom-start', customStart); trendPeriod = 'custom'; renderTrend(computeData()); };
   if (ce) ce.onchange = e => { customEnd = e.target.value; localStorage.setItem('gc-custom-end', customEnd); trendPeriod = 'custom'; renderTrend(computeData()); };
+  alignChartLabels();
 }
+
+/** Rótulos do eixo X ficam no mesmo x da coluna, sem serem esticados pelo preserveAspectRatio. */
+function alignChartLabels() {
+  const svg = document.querySelector('#sec-trend .chart-wrap svg');
+  if (!svg) return;
+  const scaleX = svg.getBoundingClientRect().width / CHART_W || 1;
+  const unscale = (1 / scaleX).toFixed(4);
+  svg.querySelectorAll('text[data-x]').forEach(t => {
+    t.setAttribute('transform', `translate(${t.getAttribute('data-x')} 312) scale(${unscale} 1)`);
+  });
+}
+window.addEventListener('resize', alignChartLabels);
 
 function renderHistory(data) {
   if (!data?.weeks) return;
@@ -1204,7 +1238,7 @@ function computeData() {
   const weekRevFromDb = DB[w]?.m2;
   const revRealSemana = weekRevFromDb != null ? weekRevFromDb : revenueCum;
 
-  const usersMetaDia = Math.max(0, (expectedAt(w).m1 - usersToday) / remainInclWeek);
+  const usersMetaDia = Math.max(0, (weekMeta(w).m1 - usersToday) / remainInclWeek);
   const usersRealDia = usersYesterdayEod != null ? usersToday - usersYesterdayEod : 0;
   const usersBadge = usersYesterdayEod == null ? 'neutral' : (usersRealDia >= usersMetaDia ? 'success' : 'danger');
 
@@ -1222,10 +1256,11 @@ function computeData() {
     { label: 'Tempo médio', metaLabel: fmtMin(tempoMetaDia), realLabel: fmtMin(tempoToday), badgeBg: bT.bg, badgeColor: bT.color, badgeLabel: bT.label },
   ];
 
-  const usersMetaSemana = expectedAt(w).m1;
+  const weekTarget = weekMeta(w);
+  const usersMetaSemana = weekTarget.m1;
   const usersRealSemana = usersToday;
-  const revMetaSemana = expectedAt(w).m2;
-  const tempoMetaSemana = expectedAt(w).m3;
+  const revMetaSemana = weekTarget.m2;
+  const tempoMetaSemana = weekTarget.m3;
   const tempoRealSemana = tempoToday;
   const usersPct = (usersRealSemana / usersMetaSemana) * 100;
   const revPct = revMetaSemana > 0 ? (revRealSemana / revMetaSemana) * 100 : 0;
@@ -1258,12 +1293,12 @@ function computeData() {
   };
 
   const weeks = [];
-  for (let wi = 1; wi <= 12; wi++) {
+  for (let wi = 0; wi <= 12; wi++) {
     const status = wi < w ? 'done' : wi === w ? 'current' : 'future';
     const ss = statusStyles[status];
     const row = DB[wi] || {};
     const fullEndDay = weekEndDay(wi);
-    const metaFull = expectedAt(wi);
+    const metaFull = weekMeta(wi);
     let dotUsers = 'var(--border)', dotRevenue = 'var(--border)', dotTempo = 'var(--border)';
     let metrics;
     const cf = p => { const tr = tierOf(p); return tr === 'success' ? 'var(--ok)' : tr === 'warning' ? 'var(--risk)' : 'var(--danger)'; };
@@ -1276,8 +1311,8 @@ function computeData() {
       const tAct = wi === w
         ? (liveMetric('m3') ?? historyMetricAtWeek('m3', wi))
         : historyMetricAtWeek('m3', wi);
-      const rAct = row.m2 != null ? row.m2 : (hasEntries ? revenueUpToDay(endDay) : null);
-      const exp = expectedAtDay(endDay);
+      const rAct = row.m2 != null ? row.m2 : (wi === 0 ? null : (hasEntries ? revenueUpToDay(endDay) : null));
+      const exp = wi === 0 ? weekMeta(0) : expectedAtDay(endDay);
       const hasUsers = uAct != null;
       const hasTempo = tAct != null;
       const hasRev = hasEntries || row.m2 != null;
@@ -1321,7 +1356,7 @@ function computeData() {
     if (expanded[wi] === undefined && wi === w) expanded[wi] = true;
     weeks.push({
       n: wi, isCurrent: wi === w, isFuture: wi > w,
-      dateRange: fmtDateShort(dateForDay(weekStartDay(wi))) + '–' + fmtDateShort(dateForDay(weekEndDay(wi))),
+      dateRange: weekRangeLabel(wi),
       statusLabel: ss.label, statusBg: ss.bg, statusColor: ss.color,
       dotUsers, dotRevenue, dotTempo,
       metrics,
