@@ -1,6 +1,6 @@
 # Ciclo 12 Semanas — Grana Certa
 
-Dashboard OKR do Ciclo 3 (12 semanas).
+Dashboard OKR do Ciclo 4 (04/10 a 26/12 de 2026, 12 semanas). Semana 0: 27/09 a 03/10. Objetivo: conseguir monetizar o app.
 
 ## Conectar dados do TESP
 
