@@ -1,1431 +1,422 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="theme-color" content="#0E0F0C" media="(prefers-color-scheme: dark)">
-<meta name="theme-color" content="#F7F8F2" media="(prefers-color-scheme: light)">
-<meta name="description" content="Acompanhamento OKR do Ciclo 4 — Grana Certa · 12 semanas">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#0E0F0C">
+<meta name="description" content="Painel do Ciclo 4 — Grana Certa. Metas, usuários ativos e tempo de espera, semana a semana.">
 <title>Grana Certa — Ciclo 12 Semanas</title>
 <link rel="icon" type="image/svg+xml" href="app-icon-512.svg">
-<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;700;800&family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="dash.css">
 <script>
-(function() {
+(function () {
   var saved = localStorage.getItem('gc-theme');
   var theme = saved || (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
   document.documentElement.setAttribute('data-theme', theme);
+  var meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) meta.setAttribute('content', theme === 'light' ? '#F4F5EF' : '#0E0F0C');
 })();
 </script>
 <style>
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-::selection { background: #B5FF2D; color: #000; }
-input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(0.6); }
-:root[data-theme="dark"] input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(0.6); }
-
-:root {
-  --accent-fill: #B5FF2D;
-  --accent-pressed: #9AE01A;
-  --on-accent: #000;
-  --ok: #22C55E;
-  --ok-bg: #0D2B1A;
-  --risk: #FFAA00;
-  --risk-bg: #2B1F00;
-  --danger: #FF4040;
-  --danger-bg: #2B0A0A;
-  --info: #4D9EFF;
-}
-:root[data-theme="dark"] {
-  --bg: #0E0F0C; --surface: #161712; --elevated: #1F2119; --overlay: #2A2D22;
-  --text: #F7F8F2; --text-2: #D4D6CE; --muted: #6B7060;
-  --accent: #B5FF2D; --accent-subtle: #3D5A06; --accent-border: #72A812;
-  --border: #2A2D22; --border-strong: #3D4030;
-}
-:root[data-theme="light"] {
-  --bg: #F7F8F2; --surface: #FFFFFF; --elevated: #FFFFFF; --overlay: #ECEEE6;
-  --text: #0E0F0C; --text-2: #4A5040; --muted: #A8AA9E;
-  --accent: #5A8A00; --accent-subtle: #E8FFB0; --accent-border: #CCEE80;
-  --border: #E5E7DF; --border-strong: #C8CABC;
-  --ok-bg: #DCFCE7; --risk-bg: #FFF3D0; --danger-bg: #FFE5E5;
-}
-
-html { scroll-behavior: smooth; }
-body {
-  background: var(--bg); color: var(--text);
-  font-family: Inter, sans-serif; font-size: 14px; line-height: 1.6;
-  min-height: 100vh; -webkit-font-smoothing: antialiased;
-  transition: background 0.2s, color 0.2s;
-}
-
-.sticky-header {
-  position: sticky; top: 0; z-index: 100;
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 16px 28px; border-bottom: 1px solid var(--border);
-  background: var(--bg); gap: 16px; flex-wrap: wrap;
-}
-.header-left { display: flex; align-items: center; gap: 10px; min-width: 0; flex-wrap: wrap; }
-.header-mark svg { display: block; flex-shrink: 0; }
-.header-wordmark {
-  font-family: 'Barlow Condensed', sans-serif; font-weight: 800;
-  font-size: 15px; line-height: 0.95; letter-spacing: 0.4px;
-}
-.header-wordmark .w1 { color: var(--text); }
-.header-wordmark .w2 { color: var(--accent); font-weight: 500; }
-.header-divider { width: 1px; height: 24px; background: var(--border); margin: 0 6px; flex-shrink: 0; }
-.header-cycle {
-  font-family: Inter, sans-serif; font-weight: 600; font-size: 11px;
-  letter-spacing: 0.15em; color: var(--muted); text-transform: uppercase;
-}
-.header-cycle em { font-style: normal; color: var(--accent); }
-.header-right { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
-
-.btn-copy {
-  display: flex; align-items: center; gap: 7px;
-  font-family: Inter, sans-serif; font-weight: 600; font-size: 11px;
-  letter-spacing: 1px; text-transform: uppercase;
-  background: var(--surface); color: var(--text-2);
-  border: 1px solid var(--border); border-radius: 6px;
-  padding: 8px 14px; cursor: pointer; transition: border-color 0.15s, background 0.15s;
-}
-.btn-copy:hover { border-color: var(--accent-border); }
-.btn-copy.is-copied { background: var(--accent-subtle); color: var(--accent); border-color: var(--accent-border); }
-
-.sync-pill {
-  display: flex; align-items: center; gap: 6px;
-  font-family: Inter, sans-serif; font-size: 10px; font-weight: 600;
-  letter-spacing: 1px; text-transform: uppercase; color: var(--muted);
-}
-.sync-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--muted); }
-.sync-dot.syncing { background: var(--risk); animation: pulse 1s infinite; }
-.sync-dot.synced { background: var(--ok); }
-.sync-dot.error { background: var(--danger); }
-@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
-
-.theme-toggle {
-  width: 32px; height: 32px; border-radius: 16px;
-  border: 1px solid var(--border); background: var(--surface);
-  color: var(--accent); display: flex; align-items: center; justify-content: center;
-  cursor: pointer; transition: border-color 0.15s;
-}
-.theme-toggle:hover { border-color: var(--accent-border); }
-.theme-toggle svg { width: 15px; height: 15px; display: block; }
-.theme-toggle .icon-sun { display: none; }
-.theme-toggle .icon-moon { display: block; }
-:root[data-theme="light"] .theme-toggle .icon-sun { display: block; }
-:root[data-theme="light"] .theme-toggle .icon-moon { display: none; }
-
-.main { max-width: 1160px; margin: 0 auto; padding: 0 28px 80px; }
-
-.section-head {
-  display: flex; align-items: baseline; gap: 10px; margin-bottom: 4px;
-}
-.section-head.accent .section-dash { background: var(--accent-fill); }
-.section-dash { width: 20px; height: 2px; background: var(--accent-fill); flex-shrink: 0; }
-.section-title {
-  font-family: Inter, sans-serif; font-weight: 600; font-size: 12px;
-  letter-spacing: 0.27em; text-transform: uppercase;
-}
-.section-title.accent { color: var(--accent); }
-.section-title.muted { color: var(--muted); font-size: 11px; }
-.section-rule { height: 1px; background: var(--border); margin-bottom: 16px; }
-
-.obj-row {
-  padding-top: 24px; display: flex; align-items: center;
-  justify-content: space-between; gap: 20px; flex-wrap: wrap;
-}
-.obj-h1 {
-  font-family: 'Barlow Condensed', sans-serif; font-weight: 800;
-  font-size: 28px; letter-spacing: -0.02em; line-height: 1.05; margin: 0;
-}
-.obj-h1 em { font-style: normal; color: var(--accent); }
-.obj-summary {
-  font-size: 13px; line-height: 1.5; color: var(--text-2); max-width: 480px;
-}
-
-.grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
-@media (max-width: 900px) { .grid-3 { grid-template-columns: 1fr; } }
-
-.card {
-  background: var(--surface); border: 1px solid var(--border);
-  border-radius: 6px; padding: 18px;
-}
-.card-label {
-  font-family: Inter, sans-serif; font-weight: 600; font-size: 11px;
-  letter-spacing: 0.2em; color: var(--muted); text-transform: uppercase;
-}
-.card-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
-.badge {
-  font-family: Inter, sans-serif; font-weight: 600; font-size: 10px;
-  letter-spacing: 1.5px; padding: 3px 8px; border-radius: 20px;
-}
-.metric-pair { display: flex; gap: 20px; }
-.metric-box .metric-key {
-  font-family: 'Space Grotesk', monospace; font-size: 10px; color: var(--muted);
-}
-.metric-box .metric-val {
-  font-family: 'Barlow Condensed', sans-serif; font-weight: 800; font-size: 26px;
-}
-.metric-box .metric-val.secondary { color: var(--text-2); }
-
-.week-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 16px; margin-top: 0; }
-.week-grid .metric-key {
-  font-family: 'Space Grotesk', monospace; font-size: 10px; color: var(--muted);
-}
-.week-grid .metric-val {
-  font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 19px;
-}
-
-.revenue-bar {
-  margin-top: 20px; background: var(--surface); border: 1px solid var(--border);
-  border-radius: 6px; padding: 14px 18px;
-  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
-}
-.revenue-bar label {
-  font-family: Inter, sans-serif; font-weight: 600; font-size: 11px;
-  letter-spacing: 0.15em; color: var(--muted); text-transform: uppercase; white-space: nowrap;
-}
-.revenue-bar input[type="date"],
-.revenue-bar input[type="number"],
-.revenue-bar input[type="text"] {
-  background: var(--elevated); border: 1px solid var(--border-strong);
-  border-radius: 6px; padding: 7px 10px; height: 36px;
-  font-family: 'Space Grotesk', monospace; font-size: 12px; color: var(--text);
-  outline: none; box-sizing: border-box;
-}
-.revenue-bar input[type="number"] { width: 110px; }
-.revenue-bar input:focus { border-color: var(--accent-fill); }
-.revenue-bar .btn-add {
-  margin-top: 0; height: 36px; padding: 0 16px; flex-shrink: 0;
-  display: inline-flex; align-items: center; justify-content: center;
-}
-.revenue-chips { margin-left: auto; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-.revenue-chip {
-  font-family: 'Space Grotesk', monospace; font-size: 11px; color: var(--text-2);
-  background: var(--elevated); border: 1px solid var(--border);
-  border-radius: 20px; padding: 4px 10px;
-}
-
-.trend-head {
-  display: flex; align-items: center; justify-content: space-between;
-  margin-bottom: 14px; flex-wrap: wrap; gap: 10px;
-}
-.trend-controls { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
-.metric-pills { display: flex; gap: 6px; align-items: center; }
-.metric-pill {
-  font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 15px;
-  background: transparent; color: var(--text-2);
-  border: 1px solid var(--border); border-radius: 6px;
-  padding: 8px 16px; cursor: pointer; transition: all 0.15s;
-}
-.metric-pill.is-active {
-  background: var(--accent-subtle); color: var(--accent); border-color: var(--accent-border);
-}
-.period-pills { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
-.period-pill {
-  font-family: Inter, sans-serif; font-weight: 600; font-size: 10px;
-  letter-spacing: 1px; text-transform: uppercase;
-  background: transparent; color: var(--muted);
-  border: 1px solid var(--border); border-radius: 20px;
-  padding: 6px 12px; cursor: pointer; transition: all 0.15s;
-}
-.period-pill.is-active {
-  background: var(--accent-subtle); color: var(--accent); border-color: var(--accent-border);
-}
-.period-dates input {
-  background: var(--elevated); border: 1px solid var(--border-strong);
-  border-radius: 6px; padding: 5px 8px;
-  font-family: 'Space Grotesk', monospace; font-size: 11px; color: var(--text);
-}
-.chart-card { padding: 22px; }
-.chart-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
-.chart-legend { display: flex; gap: 14px; flex-wrap: wrap; }
-.chart-legend span {
-  display: flex; align-items: center; gap: 5px;
-  font-family: 'Space Grotesk', monospace; font-size: 10px; color: var(--text-2);
-}
-.chart-legend i { display: block; width: 10px; height: 2px; }
-.chart-wrap { position: relative; }
-.chart-axis-x {
-  position: absolute; top: 97.5%; transform: translateX(-50%);
-  font-family: 'Space Grotesk', monospace; font-size: 10px; color: var(--muted); white-space: nowrap;
-}
-.chart-axis-x.is-today { font-weight: 700; color: var(--accent); }
-.chart-axis-y {
-  position: absolute; left: 0; transform: translateY(-50%);
-  font-family: 'Space Grotesk', monospace; font-size: 10px; color: var(--muted);
-  background: var(--surface); padding-right: 4px;
-}
-.chart-real-label {
-  position: absolute; transform: translate(-50%, -100%);
-  font-family: 'Space Grotesk', monospace; font-size: 10px; color: var(--text-2);
-  white-space: nowrap; pointer-events: none;
-}
-.chart-empty {
-  height: 320px; display: flex; align-items: center; justify-content: center;
-  font-family: 'Space Grotesk', monospace; font-size: 11px; color: var(--muted); text-align: center;
-}
-@media (max-width: 680px) {
-  .trend-head { flex-direction: column; align-items: stretch; }
-  .metric-pill { font-size: 13px; padding: 7px 12px; }
-}
-
-.week-row {
-  border: 1px solid var(--border); border-radius: 6px;
-  margin-bottom: 8px; overflow: hidden; background: transparent;
-}
-.week-row.is-current { background: var(--surface); border-color: var(--accent-fill); }
-.week-row-head {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 14px 18px; cursor: pointer; user-select: none; gap: 12px;
-}
-.week-row-head:hover { background: var(--overlay); }
-.week-num {
-  font-family: 'Barlow Condensed', sans-serif; font-weight: 700;
-  font-size: 13px; width: 30px; flex-shrink: 0;
-}
-.week-row.is-future .week-num { color: var(--muted); }
-.week-dots { display: flex; gap: 5px; }
-.week-dots i { width: 6px; height: 6px; border-radius: 3px; display: block; }
-.week-meta { display: flex; align-items: center; gap: 14px; flex-shrink: 0; }
-.week-dates { font-family: 'Space Grotesk', monospace; font-size: 11px; color: var(--muted); }
-.status-chip {
-  font-family: Inter, sans-serif; font-weight: 600; font-size: 10px;
-  letter-spacing: 1.5px; padding: 4px 10px; border-radius: 20px;
-}
-.week-chevron { color: var(--muted); transition: transform 0.15s; font-size: 12px; }
-.week-row.is-open .week-chevron { transform: rotate(180deg); }
-.week-body { padding: 0 18px 18px; display: none; }
-.week-row.is-open .week-body { display: block; }
-.week-metrics-head, .week-metric-row {
-  display: grid; grid-template-columns: 1.3fr 1fr 1fr 1fr; gap: 8px 16px; align-items: center;
-}
-.week-metrics-head {
-  padding-bottom: 6px;
-  font-family: Inter, sans-serif; font-weight: 600; font-size: 9px;
-  letter-spacing: 0.18em; color: var(--muted); text-transform: uppercase;
-}
-.week-metric-row {
-  padding: 8px 0; border-top: 1px solid var(--border);
-}
-.week-metric-label {
-  font-family: Inter, sans-serif; font-weight: 600; font-size: 12px; color: var(--text-2);
-}
-.week-metric-val {
-  font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 17px;
-}
-@media (max-width: 560px) {
-  .week-metrics-head { display: none; }
-  .week-metric-row {
-    grid-template-columns: 1fr 1fr 1fr;
-    grid-template-areas:
-      "label label label"
-      "meta real pct";
-    gap: 4px 12px;
-  }
-  .week-metric-label { grid-area: label; margin-bottom: 2px; }
-  .week-metric-val[data-col="Meta"] { grid-area: meta; }
-  .week-metric-val[data-col="Real"] { grid-area: real; }
-  .week-metric-val[data-col="Alcançado"] { grid-area: pct; }
-  .week-metric-val[data-col]::before {
-    content: attr(data-col);
-    display: block;
-    font-family: Inter, sans-serif; font-weight: 600; font-size: 9px;
-    letter-spacing: 0.18em; color: var(--muted); text-transform: uppercase;
-    margin-bottom: 2px;
-  }
-}
-.btn-save {
-  margin-top: 14px; font-family: Inter, sans-serif; font-weight: 600;
-  font-size: 11px; letter-spacing: 1.5px; text-transform: uppercase;
-  background: var(--accent-fill); color: var(--on-accent);
-  border: none; border-radius: 6px; padding: 8px 16px; cursor: pointer;
-}
-.btn-save:hover { background: var(--accent-pressed); }
-.btn-save:disabled { opacity: 0.4; cursor: not-allowed; }
-
-.mt-36 { margin-top: 36px; }
-.mt-40 { margin-top: 40px; }
-.mt-48 { margin-top: 48px; }
-
-.toast {
-  position: fixed; bottom: 28px; right: 24px;
-  background: var(--accent-fill); color: var(--on-accent);
-  font-family: 'Barlow Condensed', sans-serif; font-size: 12px; font-weight: 700;
-  letter-spacing: 2px; text-transform: uppercase; border-radius: 20px;
-  padding: 12px 20px; opacity: 0; transform: translateY(8px);
-  transition: opacity 0.2s, transform 0.2s; pointer-events: none; z-index: 999;
-}
-.toast.show { opacity: 1; transform: translateY(0); }
-.toast.error { background: var(--danger); color: var(--on-accent); }
-
-@media (max-width: 680px) {
-  .sticky-header { padding: 12px 16px; }
-  .header-divider, .header-cycle { display: none; }
-  .main { padding: 0 16px 60px; }
-  .header-left { gap: 8px; }
-}
+  html, body { margin: 0; background: #0E0F0C; }
+  html[data-theme="light"], html[data-theme="light"] body { background: #F4F5EF; }
+  .boot { margin: 0; padding: 48px 20px; text-align: center; font-family: Barlow, system-ui, sans-serif; color: #A6A89C; }
+  html[data-theme="light"] .boot { color: #55574E; }
 </style>
 </head>
 <body>
-
-<header class="sticky-header">
-  <div class="header-left">
-    <div class="header-mark" aria-hidden="true">
-      <svg viewBox="0 0 60 45" width="26" height="20">
-        <path d="M4 36 A26 26 0 1 1 56 36" stroke="var(--accent-fill)" stroke-width="3" stroke-linecap="round" fill="none"/>
-        <line x1="24" y1="30.5" x2="34" y2="18" stroke="var(--accent-fill)" stroke-width="2" stroke-linecap="round"/>
-        <circle cx="24" cy="30.5" r="3.6" fill="var(--accent-fill)"/>
-        <circle cx="24" cy="30.5" r="1.5" fill="var(--bg)"/>
-      </svg>
-    </div>
-    <div class="header-wordmark"><div class="w1">GRANA</div><div class="w2">CERTA</div></div>
-    <div class="header-divider"></div>
-    <div class="header-cycle" id="header-cycle">Ciclo 4 · Semana 1 de 12 · <em>faltam 84 dias</em></div>
-  </div>
-  <div class="header-right">
-    <div class="sync-pill"><div class="sync-dot" id="sync-dot"></div><span id="sync-label">Conectando</span></div>
-    <button class="btn-copy" id="btn-copy" type="button">
-      <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><rect x="8" y="8" width="12" height="12" rx="2" stroke="currentColor" stroke-width="2"/><path d="M4 16V6a2 2 0 0 1 2-2h10" stroke="currentColor" stroke-width="2"/></svg>
-      <span id="copy-label">Copiar resumo</span>
-    </button>
-    <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Alternar tema">
-      <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
-      <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.8" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
-    </button>
-  </div>
-</header>
-
-<div class="main">
-  <div class="obj-row">
-    <h1 class="obj-h1">Construindo o <em>Grana Certa.</em></h1>
-    <p class="obj-summary">Conseguir monetizar o app</p>
-  </div>
-
-  <section class="mt-36" id="sec-hoje"></section>
-  <section id="sec-revenue"></section>
-  <section class="mt-40" id="sec-week"></section>
-  <section class="mt-40" id="sec-trend"></section>
-  <section class="mt-48" id="sec-history"></section>
-</div>
-
-<div class="toast" id="toast"></div>
-
+<div id="app"><p class="boot">Carregando…</p></div>
+<script src="dash.js"></script>
 <script>
-// ─── THEME ────────────────────────────────────────────────
-function applyTheme(theme) {
-  document.documentElement.setAttribute('data-theme', theme);
-  localStorage.setItem('gc-theme', theme);
-  document.getElementById('theme-toggle').setAttribute('aria-label', theme === 'light' ? 'Ativar modo escuro' : 'Ativar modo claro');
-}
-function toggleTheme() {
-  applyTheme(document.documentElement.getAttribute('data-theme') === 'light' ? 'dark' : 'light');
-  render();
-}
-document.getElementById('theme-toggle').onclick = toggleTheme;
-applyTheme(document.documentElement.getAttribute('data-theme'));
+(function () {
+  // OKR — "1 ano em 12 semanas". As linhas atuais são do ciclo anterior e não há coluna `ciclo`,
+  // então este painel não lê nem grava essa tabela. Receita fica no navegador.
+  const OKR_SUPABASE_URL = 'https://sbywtjxgkhqdeplymhdz.supabase.co';
+  const OKR_SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNieXd0anhna2hxZGVwbHltaGR6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc2ODc3NzUsImV4cCI6MjA5MzI2Mzc3NX0.9lGvokR-HdSdZAh-G0_70_0gwA6SKEtPwrvINmQmTnU';
+  void OKR_SUPABASE_URL;
+  void OKR_SUPABASE_KEY;
 
-// ─── CONFIG ───────────────────────────────────────────────
-// Projeto OKR — "1 ano em 12 semanas" (registro semanal, notas, receita)
-const OKR_SUPABASE_URL = 'https://sbywtjxgkhqdeplymhdz.supabase.co';
-const OKR_SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNieXd0anhna2hxZGVwbHltaGR6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc2ODc3NzUsImV4cCI6MjA5MzI2Mzc3NX0.9lGvokR-HdSdZAh-G0_70_0gwA6SKEtPwrvINmQmTnU';
+  const TESP_SUPABASE_URL = 'https://qrlsyhffqrprbljhirkk.supabase.co';
+  const TESP_SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFybHN5aGZmcXJwcmJsamhpcmtrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY5ODA3OTgsImV4cCI6MjA5MjU1Njc5OH0.kRbbuci-fnHKp6YOX0yUNvuiQ_yKKpdjU5PdBjX1OOo';
+  const LIVE_METRICS_RPC = 'get_okr_live_metrics';
 
-// Projeto TESP — "Tempo de espera SP" (WAU + tempo médio via wait_contributions)
-const TESP_SUPABASE_URL = 'https://qrlsyhffqrprbljhirkk.supabase.co';
-const TESP_SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFybHN5aGZmcXJwcmJsamhpcmtrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY5ODA3OTgsImV4cCI6MjA5MjU1Njc5OH0.kRbbuci-fnHKp6YOX0yUNvuiQ_yKKpdjU5PdBjX1OOo';
+  const CYCLE_N = 4;
+  const CYCLE_DAYS = 84;
+  const CICLO_START = new Date('2026-10-04T00:00:00-03:00');
+  const WEEK0_START = new Date('2026-09-27T00:00:00-03:00');
+  const USERS = [438, 530, 650, 790, 960, 1160, 1410, 1710, 2080, 2520, 3060, 3710, 4500];
+  const REV = [0, 0, 0, 0, 0, 100, 250, 450, 750, 1150, 1650, 2250, 3000];
+  const WAIT = [5.6, 5.3, 5.0, 4.7, 4.4, 4.1, 3.8, 3.5, 3.2, 2.9, 2.6, 2.3, 2.0];
+  const REVENUE_KEY = 'gc-revenue-entries-c4';
+  const CACHE_KEY = 'gc-metric-windows-c4';
+  const TZ = 'America/Sao_Paulo';
 
-const TABLE = 'okr_ciclo';
-const LIVE_METRICS_RPC = 'get_okr_live_metrics';
-const WAU_PERIOD_DAYS = 7;
-const CYCLE_N = 4;
-const CYCLE_DAYS = 84;
-const CICLO_START = new Date('2026-10-04T00:00:00-03:00');
-const WEEK0_START = new Date('2026-09-27T00:00:00-03:00');
-const BASELINE = { m1: 438, m2: 0, m3: 5.6 };
+  const tespHeaders = {
+    apikey: TESP_SUPABASE_KEY,
+    Authorization: 'Bearer ' + TESP_SUPABASE_KEY,
+    'Content-Type': 'application/json',
+  };
 
-const EXPECTED = {
-  m1: [0,530,650,790,960,1160,1410,1710,2080,2520,3060,3710,4500],
-  m2: [0,0,0,0,0,100,250,450,750,1150,1650,2250,3000],
-  m3: [0,5.3,5.0,4.7,4.4,4.1,3.8,3.5,3.2,2.9,2.6,2.3,2.0],
-};
+  let cache = {};
+  try { cache = JSON.parse(sessionStorage.getItem(CACHE_KEY) || '{}'); } catch (_) { cache = {}; }
+  const inflight = new Map();
+  const WEEK = {};
+  const DAY = {};
+  let LIVE = null;
+  let CAL = null;
+  let CAL_PREV = null;
+  let LIVE15 = null;
+  let LIVE15Y = null;
+  let receivedAt = null;
+  let CUSTOM = null;
+  let revenueEntries = loadRevenue();
 
-let DB = {};
-let LIVE = { m1: null, m3: null, updatedAt: null, available: false };
-let HIST_METRICS = {};
-let DAY_METRICS = {};
-const HIST_CACHE_KEY = 'gc-hist-metrics-c4';
-const DAY_CACHE_KEY = 'gc-day-metrics-c4';
-const OKR_DB_CACHE_KEY = 'gc-okr-db-c4';
-const REVENUE_CACHE_KEY = 'gc-revenue-entries-c4';
-let revenueEntries = JSON.parse(localStorage.getItem(REVENUE_CACHE_KEY) || '[]');
-let expanded = {};
-let trendPeriod = localStorage.getItem('gc-trend-period') || '14';
-let trendMetric = localStorage.getItem('gc-trend-metric') || 'users';
-let customStart = localStorage.getItem('gc-custom-start') || '';
-let customEnd = localStorage.getItem('gc-custom-end') || '';
-let newEntryDate = '';
-let newEntryValue = '';
-let copyTimer;
-
-function getCurrentWeek() {
-  const diff = Date.now() - CICLO_START.getTime();
-  if (diff < 0) return 0;
-  return Math.min(Math.max(Math.floor(diff / (7 * 86400000)) + 1, 1), 12);
-}
-function getTodayDay() {
-  const diff = Math.floor((Date.now() - CICLO_START.getTime()) / 86400000) + 1;
-  return Math.min(Math.max(diff, 1), CYCLE_DAYS);
-}
-const CURRENT_WEEK = getCurrentWeek();
-const TODAY = getTodayDay();
-
-function weekOf(d) { return Math.ceil(d / 7); }
-function weekStartDay(w) { return (w - 1) * 7 + 1; }
-function weekEndDay(w) { return Math.min(w * 7, CYCLE_DAYS); }
-function dateForDay(d) { return new Date(CICLO_START.getTime() + (d - 1) * 86400000); }
-function weekRangeLabel(w) {
-  if (w === 0) {
-    const end = new Date(CICLO_START.getTime() - 86400000);
-    return fmtDateShort(WEEK0_START) + '–' + fmtDateShort(end);
+  function loadRevenue() {
+    try {
+      const rows = JSON.parse(localStorage.getItem(REVENUE_KEY) || '[]');
+      if (!Array.isArray(rows)) return [];
+      return rows
+        .filter(e => e && !isNaN(Number(e.value)) && !isNaN(Number(e.day)))
+        .map(e => ({ day: Number(e.day), iso: e.iso || '', value: Number(e.value), origin: e.origin || '' }));
+    } catch (_) { return []; }
   }
-  return fmtDateShort(dateForDay(weekStartDay(w))) + '–' + fmtDateShort(dateForDay(weekEndDay(w)));
-}
-function weekMeta(w) {
-  return w === 0 ? { m1: BASELINE.m1, m2: BASELINE.m2, m3: BASELINE.m3 } : expectedAt(w);
-}
-function fmtDateShort(dt) { return String(dt.getDate()).padStart(2,'0') + '/' + String(dt.getMonth()+1).padStart(2,'0'); }
-function isoForDay(d) {
-  const dt = dateForDay(d);
-  return dt.getFullYear() + '-' + String(dt.getMonth()+1).padStart(2,'0') + '-' + String(dt.getDate()).padStart(2,'0');
-}
-function dayFromISO(iso) {
-  const dt = new Date(iso + 'T12:00:00');
-  return Math.round((dt - CICLO_START) / 86400000) + 1;
-}
-function metricsPeriod() {
-  const end = new Date();
-  const start = new Date(end.getTime() - WAU_PERIOD_DAYS * 86400000);
-  return { inicio: start.toISOString(), fim: end.toISOString() };
-}
-function dayRollingPeriodBounds(d) {
-  // Hoje: janela rolante de 7×24h até agora (ex.: segunda 11h → segunda passada 11h).
-  // Dias fechados: WAU como estava às 23:59:59 daquele dia (7×24h até meia-noite seguinte).
-  if (d === TODAY) {
+
+  function dateForDay(d) {
+    return new Date(CICLO_START.getTime() + (d - 1) * 86400000);
+  }
+  function isoStamp(dt) {
+    return new Intl.DateTimeFormat('en-CA', { timeZone: TZ, year: 'numeric', month: '2-digit', day: '2-digit' }).format(dt);
+  }
+  function fmtShort(dt) {
+    return new Intl.DateTimeFormat('pt-BR', { timeZone: TZ, day: '2-digit', month: '2-digit' }).format(dt);
+  }
+  function weekday(dt, style) {
+    return new Intl.DateTimeFormat('pt-BR', { timeZone: TZ, weekday: style }).format(dt).replace('.', '');
+  }
+  function clock(dt) {
+    return new Intl.DateTimeFormat('pt-BR', { timeZone: TZ, hour: '2-digit', minute: '2-digit' }).format(dt);
+  }
+  function todayDay() {
+    const iso = isoStamp(new Date());
+    const noon = new Date(iso + 'T12:00:00-03:00');
+    const start = new Date('2026-10-04T12:00:00-03:00');
+    return Math.round((noon - start) / 86400000) + 1;
+  }
+  function dayFromIso(iso) {
+    const dt = new Date(iso + 'T00:00:00-03:00');
+    return Math.round((dt - CICLO_START) / 86400000) + 1;
+  }
+  function currentWeek(day) {
+    if (day < 1) return 0;
+    return Math.min(12, Math.ceil(day / 7));
+  }
+  function weekOfDay(d) {
+    if (d <= 0) return 0;
+    return Math.min(12, Math.ceil(d / 7));
+  }
+  function metaOnDay(arr, d) {
+    const w = weekOfDay(d);
+    if (w <= 0) return arr[0];
+    const capped = Math.min(Math.max(d, 1), 84);
+    const dow = ((capped - 1) % 7) + 1;
+    return arr[w - 1] + (arr[w] - arr[w - 1]) * (dow / 7);
+  }
+  function revenueUpTo(day) {
+    return revenueEntries.filter(e => e.day <= day).reduce((sum, e) => sum + e.value, 0);
+  }
+
+  const TODAY = todayDay();
+  const WEEK_NOW = currentWeek(TODAY);
+  const WEEK_END = WEEK_NOW <= 0 ? 0 : WEEK_NOW * 7;
+
+  function weekBounds(w, freshEnd) {
+    if (w <= 0) return { inicio: WEEK0_START, fim: freshEnd ? new Date() : CICLO_START };
+    const inicio = dateForDay((w - 1) * 7 + 1);
+    const fim = freshEnd ? new Date() : dateForDay(w * 7 + 1);
+    return { inicio, fim };
+  }
+  function dayBounds(d) {
+    const fim = new Date(dateForDay(d).getTime() + 86400000);
+    return { inicio: new Date(fim.getTime() - 7 * 86400000), fim };
+  }
+  function liveBounds() {
     const fim = new Date();
-    const inicio = new Date(fim.getTime() - WAU_PERIOD_DAYS * 86400000);
-    return { inicio: inicio.toISOString(), fim: fim.toISOString() };
-  }
-  const fim = new Date(dateForDay(d).getTime() + 86400000);
-  const inicio = new Date(fim.getTime() - WAU_PERIOD_DAYS * 86400000);
-  return { inicio: inicio.toISOString(), fim: fim.toISOString() };
-}
-function rollingCacheKey(d, bounds) {
-  return `roll:d${d}:${bounds.inicio}:${bounds.fim}`;
-}
-function loadDayCache() {
-  try { return JSON.parse(sessionStorage.getItem(DAY_CACHE_KEY) || '{}'); } catch (_) { return {}; }
-}
-function saveDayCache(cache) {
-  try { sessionStorage.setItem(DAY_CACHE_KEY, JSON.stringify(cache)); } catch (_) {}
-}
-function dayMetricAt(key, d) {
-  return DAY_METRICS[d]?.[key] ?? null;
-}
-function weekPeriodBounds(w) {
-  if (w === 0) {
-    if (Date.now() < WEEK0_START.getTime()) return null;
-    const fimMs = CURRENT_WEEK > 0 ? CICLO_START.getTime() : Math.min(Date.now(), CICLO_START.getTime());
-    return { inicio: WEEK0_START.toISOString(), fim: new Date(fimMs).toISOString() };
-  }
-  const startDay = weekStartDay(w);
-  const endDay = Math.min(weekEndDay(w), TODAY);
-  if (startDay > TODAY) return null;
-  return {
-    inicio: dateForDay(startDay).toISOString(),
-    fim: new Date(dateForDay(endDay).getTime() + 86400000).toISOString(),
-  };
-}
-function histCacheKey(w, bounds) {
-  return `w${w}:${bounds.inicio}:${bounds.fim}`;
-}
-function loadHistCache() {
-  try { return JSON.parse(sessionStorage.getItem(HIST_CACHE_KEY) || '{}'); } catch (_) { return {}; }
-}
-function saveHistCache(cache) {
-  try { sessionStorage.setItem(HIST_CACHE_KEY, JSON.stringify(cache)); } catch (_) {}
-}
-function historyMetricAtWeek(key, w) {
-  if (w > CURRENT_WEEK) return null;
-  return HIST_METRICS[w]?.[key] ?? null;
-}
-function tespConfigured() {
-  return !TESP_SUPABASE_URL.includes('SEU-PROJETO') && !TESP_SUPABASE_KEY.includes('SUA-CHAVE');
-}
-function expectedAt(w) { return { m1: EXPECTED.m1[w], m2: EXPECTED.m2[w], m3: EXPECTED.m3[w] }; }
-
-function expectedAtDay(d) {
-  const w = weekOf(d);
-  const prev = w > 1 ? expectedAt(w - 1) : { m1: 438, m2: 0, m3: 5.6 };
-  const curr = expectedAt(w);
-  const frac = (d - weekStartDay(w) + 1) / 7;
-  return {
-    m1: prev.m1 + (curr.m1 - prev.m1) * frac,
-    m2: prev.m2 + (curr.m2 - prev.m2) * frac,
-    m3: prev.m3 + (curr.m3 - prev.m3) * frac,
-  };
-}
-
-/** Métrica real no dia d — sem interpolar entre semanas. */
-function actualAtDay(d) {
-  if (d > TODAY || d < 1) return null;
-  const rev = DB[weekOf(d)]?.m2 ?? revenueUpToDay(d);
-  if (d === TODAY && LIVE.available && (LIVE.m1 != null || LIVE.m3 != null)) {
-    return { m1: LIVE.m1, m3: LIVE.m3, m2: rev };
-  }
-  const dayM = DAY_METRICS[d];
-  if (dayM && (dayM.m1 != null || dayM.m3 != null)) {
-    return { m1: dayM.m1 ?? null, m3: dayM.m3 ?? null, m2: rev };
-  }
-  if (d === TODAY) {
-    return {
-      m1: latestMetric('m1', weekOf(d)),
-      m3: latestMetric('m3', weekOf(d)),
-      m2: rev,
-    };
-  }
-  return null;
-}
-
-/** WAU / tempo medidos agora (últimos 7×24h). */
-function liveMetric(key) {
-  if (LIVE.available && LIVE[key] != null) return LIVE[key];
-  return dayMetricAt(key, TODAY);
-}
-
-/** WAU / tempo como estavam no fim do dia d (23:59:59). */
-function eodMetric(key, d) {
-  if (d < 1) return null;
-  if (d >= TODAY) return liveMetric(key);
-  return dayMetricAt(key, d);
-}
-
-function latestMetric(key, upToWeek) {
-  if (upToWeek === CURRENT_WEEK && LIVE.available && LIVE[key] != null) return LIVE[key];
-  for (let s = upToWeek; s >= 1; s--) {
-    if (DB[s]?.[key] != null) return DB[s][key];
-  }
-  return BASELINE[key];
-}
-
-function revenueUpToDay(d) {
-  return revenueEntries.filter(e => e.day <= d).reduce((s, e) => s + e.value, 0);
-}
-function revenueOnDay(d) {
-  return revenueEntries.filter(e => e.day === d).reduce((s, e) => s + e.value, 0);
-}
-
-function tierOf(pace) { return pace >= 95 ? 'success' : pace >= 70 ? 'warning' : 'danger'; }
-function fmtInt(n) { return Math.round(n).toLocaleString('pt-BR'); }
-function fmtMoney(n) { return 'R$' + Math.round(n).toLocaleString('pt-BR'); }
-function fmtMin(n) { return Number(n).toFixed(2) + ' min'; }
-function badgeStyle(tier) {
-  if (tier === 'success') return { bg: 'var(--ok-bg)', color: 'var(--ok)', label: '● BATEU' };
-  if (tier === 'danger') return { bg: 'var(--danger-bg)', color: 'var(--danger)', label: '● NÃO BATEU' };
-  return { bg: 'var(--overlay)', color: 'var(--muted)', label: '○ AGUARDANDO' };
-}
-function pctColor(pace) {
-  const tr = tierOf(pace);
-  return tr === 'success' ? 'var(--ok)' : tr === 'warning' ? 'var(--risk)' : 'var(--danger)';
-}
-
-function linreg(points) {
-  const n = points.length;
-  if (n < 2) return { slope: 0, intercept: points[0]?.y ?? 0 };
-  let sx=0, sy=0, sxy=0, sxx=0;
-  points.forEach(p => { sx+=p.x; sy+=p.y; sxy+=p.x*p.y; sxx+=p.x*p.x; });
-  const denom = (n * sxx - sx * sx) || 1;
-  return { slope: (n * sxy - sx * sy) / denom, intercept: (sy - (n * sxy - sx * sy) / denom * sx) / n };
-}
-
-const CHART_W = 900, CHART_H = 320, PAD_L = 46, PAD_R = 12, PAD_T = 28, PAD_B = 28;
-function chartSx(x, domainMin, domainMax) {
-  return PAD_L + ((x - domainMin) / ((domainMax - domainMin) || 1)) * (CHART_W - PAD_L - PAD_R);
-}
-function chartSy(y, ymin, ymax) {
-  return (CHART_H - PAD_B) - ((y - ymin) / ((ymax - ymin) || 1)) * (CHART_H - PAD_B - PAD_T);
-}
-function pathFromPoints(pts, domainMin, domainMax, ymin, ymax) {
-  return pts.map((p, i) => (i === 0 ? 'M' : 'L') + chartSx(p.x, domainMin, domainMax).toFixed(1) + ' ' + chartSy(p.y, ymin, ymax).toFixed(1)).join(' ');
-}
-
-function trendPeriodBounds() {
-  let periodStartDay, periodEndDay;
-  if (trendPeriod === '7') {
-    periodStartDay = TODAY - 3;
-    periodEndDay = Math.min(CYCLE_DAYS, TODAY + 3);
-  } else if (trendPeriod === '14') {
-    periodStartDay = TODAY - 7;
-    periodEndDay = Math.min(CYCLE_DAYS, TODAY + 6);
-  } else if (trendPeriod === 'cycle') {
-    periodStartDay = 1;
-    periodEndDay = TODAY;
-  } else {
-    periodStartDay = dayFromISO(customStart) || 1;
-    periodEndDay = Math.min(CYCLE_DAYS, dayFromISO(customEnd) || TODAY);
-    if (periodStartDay > periodEndDay) periodStartDay = periodEndDay;
-  }
-  return { periodStartDay, periodEndDay };
-}
-
-function expectedForKey(key, d) {
-  if (d < 1) return key === 'm2' ? 0 : BASELINE[key];
-  return expectedAtDay(d)[key];
-}
-
-function metricDayReader(key, d) {
-  if (key === 'm2') {
-    if (d < 1) return 0;
-    if (d > TODAY) return expectedForKey(key, d);
-    return revenueUpToDay(d);
-  }
-  if (d > TODAY) return expectedForKey(key, d);
-  // Hoje: prioriza live (janela rolante até agora) para bater com REAL SEMANA.
-  if (d === TODAY && LIVE.available && LIVE[key] != null) return LIVE[key];
-  const val = dayMetricAt(key, d);
-  if (val != null) return val;
-  return BASELINE[key];
-}
-
-/** Métrica real por semana (ciclo): LIVE → HIST → DB. Semana 0 cai no baseline se ainda não houver leitura. */
-function metricWeekReader(key, wk) {
-  if (wk < 0) return key === 'm2' ? 0 : BASELINE[key];
-  if (wk > CURRENT_WEEK) return null;
-  if (key === 'm2') {
-    const row = DB[wk];
-    if (row?.m2 != null) return row.m2;
-    if (wk === 0) return 0;
-    const endDay = Math.min(weekEndDay(wk), TODAY);
-    return revenueEntries.length > 0 ? revenueUpToDay(endDay) : null;
-  }
-  if (wk === CURRENT_WEEK && wk > 0) {
-    const live = liveMetric(key);
-    if (live != null) return live;
-  }
-  const hist = historyMetricAtWeek(key, wk);
-  if (hist != null) return hist;
-  if (DB[wk]?.[key] != null) return DB[wk][key];
-  if (wk === 0) return BASELINE[key];
-  return null;
-}
-
-const TREND_METRICS = {
-  users: { key: 'm1', label: 'Usuários (WAU)', fmt: n => fmtInt(n) },
-  revenue: { key: 'm2', label: 'Receita acumulada', fmt: n => fmtMoney(n) },
-  tempo: { key: 'm3', label: 'Tempo médio', fmt: n => Number(n).toFixed(1) },
-};
-
-function trendMetricHasData(key) {
-  if (key === 'm2') return revenueEntries.length > 0 || Object.values(DB).some(r => r?.m2 != null);
-  const hasDay = Object.values(DAY_METRICS).some(r => r?.[key] != null);
-  if (key === 'm1') return hasDay || Object.values(HIST_METRICS).some(r => r?.m1 != null) || LIVE.available || Object.values(DB).some(r => r?.m1 != null);
-  return hasDay || Object.values(HIST_METRICS).some(r => r?.m3 != null) || LIVE.available || Object.values(DB).some(r => r?.m3 != null);
-}
-
-function buildChart(label, key, hasData, axisFmt, weekly) {
-  if (!hasData) return { label, empty: true };
-  const { periodStartDay, periodEndDay } = trendPeriodBounds();
-  let realPts, metaPts, projPts, domainMin, domainMax, xTicks, labelStep = 1;
-
-  if (weekly) {
-    domainMin = 0;
-    domainMax = 12;
-    const maxWeek = Math.min(12, weekOf(TODAY));
-    realPts = [];
-    for (let wk = 0; wk <= maxWeek; wk++) {
-      const y = metricWeekReader(key, wk);
-      if (y == null) continue;
-      realPts.push({ x: wk, y });
-    }
-    metaPts = [];
-    metaPts.push({ x: 0, y: key === 'm2' ? 0 : BASELINE[key] });
-    for (let wk = 1; wk <= 12; wk++) metaPts.push({ x: wk, y: expectedForKey(key, weekEndDay(wk)) });
-    const reg = linreg(realPts.length >= 2 ? realPts : metaPts);
-    projPts = [
-      { x: 1, y: reg.slope * 1 + reg.intercept },
-      { x: 12, y: reg.slope * 12 + reg.intercept },
-    ];
-    xTicks = [];
-    for (let wk = 0; wk <= 12; wk++) xTicks.push({ x: wk, label: 'S' + wk, isToday: wk === weekOf(TODAY) });
-  } else {
-    domainMin = periodStartDay;
-    domainMax = Math.max(periodStartDay + 1, periodEndDay);
-    realPts = [];
-    for (let d = periodStartDay; d <= Math.min(periodEndDay, TODAY); d++) {
-      realPts.push({ x: d, y: metricDayReader(key, d) });
-    }
-    metaPts = [];
-    for (let d = periodStartDay; d <= periodEndDay; d++) metaPts.push({ x: d, y: expectedForKey(key, d) });
-    const reg = linreg(realPts.length >= 2 ? realPts : metaPts);
-    projPts = [
-      { x: periodStartDay, y: reg.slope * periodStartDay + reg.intercept },
-      { x: periodEndDay, y: reg.slope * periodEndDay + reg.intercept },
-    ];
-    const span = periodEndDay - periodStartDay;
-    const step = span <= 7 ? 1 : Math.ceil((span + 1) / 6);
-    labelStep = step;
-    xTicks = [];
-    for (let d = periodStartDay; d <= periodEndDay; d += step) {
-      xTicks.push({ x: d, label: fmtDateShort(dateForDay(d)), isToday: d === TODAY });
-    }
-    if (!xTicks.some(xt => xt.isToday) && TODAY >= periodStartDay && TODAY <= periodEndDay) {
-      xTicks.push({ x: TODAY, label: fmtDateShort(dateForDay(TODAY)), isToday: true });
-    }
+    return { inicio: new Date(fim.getTime() - 7 * 86400000), fim };
   }
 
-  const allY = [...realPts.map(p => p.y), ...metaPts.map(p => p.y), ...projPts.map(p => p.y)];
-  const ymin = Math.min(...allY), ymax = Math.max(...allY);
-  const pad = (ymax - ymin) * 0.12 || 1;
-  const yLo = ymin - pad, yHi = ymax + pad;
-  const plotBottom = CHART_H - PAD_B;
+  function saveCache() {
+    try { sessionStorage.setItem(CACHE_KEY, JSON.stringify(cache)); } catch (_) {}
+  }
 
-  const xTicksOut = xTicks.map(xt => ({
-    px: chartSx(xt.x, domainMin, domainMax).toFixed(1),
-    leftPct: ((chartSx(xt.x, domainMin, domainMax) / CHART_W) * 100).toFixed(1),
-    label: xt.label,
-    isToday: !!xt.isToday,
-    lineStroke: xt.isToday ? 'var(--accent-fill)' : 'var(--border)',
-    lineWidth: xt.isToday ? 2 : 1,
-  }));
-  const yTicks = [
-    { topPct: ((chartSy(yHi, yLo, yHi) / CHART_H) * 100).toFixed(1), label: axisFmt(ymax) },
-    { topPct: ((chartSy(yLo, yLo, yHi) / CHART_H) * 100).toFixed(1), label: axisFmt(ymin) },
-  ];
-  const realDots = realPts.map(p => ({
-    cx: chartSx(p.x, domainMin, domainMax).toFixed(1),
-    cy: chartSy(p.y, yLo, yHi).toFixed(1),
-  }));
-  const realLabels = realPts
-    .filter(p => weekly ? true : ((p.x - domainMin) % labelStep === 0 || p.x === TODAY || p.x === realPts[realPts.length - 1].x))
-    .map(p => ({
-      leftPct: ((chartSx(p.x, domainMin, domainMax) / CHART_W) * 100).toFixed(1),
-      labelTopPct: (((chartSy(p.y, yLo, yHi) - 10) / CHART_H) * 100).toFixed(1),
-      label: axisFmt(p.y),
+  async function metrics(bounds, fresh) {
+    const inicio = bounds.inicio.toISOString();
+    const fim = bounds.fim.toISOString();
+    const key = inicio + '|' + fim;
+    if (!fresh && cache[key]) return cache[key];
+    if (inflight.has(key)) return inflight.get(key);
+    const run = (async () => {
+      try {
+        const r = await fetch(TESP_SUPABASE_URL + '/rest/v1/rpc/' + LIVE_METRICS_RPC, {
+          method: 'POST',
+          headers: tespHeaders,
+          body: JSON.stringify({ p_inicio: inicio, p_fim: fim }),
+        });
+        if (!r.ok) return null;
+        const data = await r.json();
+        if (!data || (data.wau == null && data.tempo_medio == null)) return null;
+        const out = {
+          m1: data.wau == null ? null : Number(data.wau),
+          m3: data.tempo_medio == null ? null : Number(data.tempo_medio),
+          updatedAt: data.updated_at || null,
+        };
+        if (!fresh) { cache[key] = out; saveCache(); }
+        return out;
+      } catch (_) {
+        return null;
+      }
+    })();
+    const tracked = run.finally(() => inflight.delete(key));
+    inflight.set(key, tracked);
+    return tracked;
+  }
+
+  function keep(prev, next) {
+    return next || prev || null;
+  }
+
+  async function pool(jobs, size) {
+    if (!jobs.length) return;
+    let cursor = 0;
+    const n = Math.min(size || 6, jobs.length);
+    await Promise.all(Array.from({ length: n }, async () => {
+      while (cursor < jobs.length) {
+        const job = jobs[cursor++];
+        try { await job(); } catch (_) {}
+      }
     }));
-
-  return {
-    label, empty: false, plotBottom,
-    realPath: pathFromPoints(realPts, domainMin, domainMax, yLo, yHi),
-    metaPath: pathFromPoints(metaPts, domainMin, domainMax, yLo, yHi),
-    projPath: pathFromPoints(projPts, domainMin, domainMax, yLo, yHi),
-    xTicks: xTicksOut, yTicks, realDots, realLabels,
-  };
-}
-
-// ─── SUPABASE ─────────────────────────────────────────────
-const okrHeaders = {
-  apikey: OKR_SUPABASE_KEY,
-  Authorization: 'Bearer ' + OKR_SUPABASE_KEY,
-  'Content-Type': 'application/json',
-  Prefer: 'return=representation',
-};
-const tespHeaders = {
-  apikey: TESP_SUPABASE_KEY,
-  Authorization: 'Bearer ' + TESP_SUPABASE_KEY,
-  'Content-Type': 'application/json',
-};
-function loadOkrDbCache() {
-  try { return JSON.parse(localStorage.getItem(OKR_DB_CACHE_KEY) || '[]'); } catch (_) { return []; }
-}
-function saveOkrDbCache(rows) {
-  try { localStorage.setItem(OKR_DB_CACHE_KEY, JSON.stringify(rows)); } catch (_) {}
-}
-function upsertOkrDbCache(row) {
-  const rows = loadOkrDbCache().filter(r => !(r.semana === row.semana && (r.ciclo ?? CYCLE_N) === (row.ciclo ?? CYCLE_N)));
-  rows.push({ ...row, ciclo: row.ciclo ?? CYCLE_N });
-  saveOkrDbCache(rows);
-  return rows;
-}
-async function dbLoadRemote() {
-  let r = await fetch(`${OKR_SUPABASE_URL}/rest/v1/${TABLE}?select=*&ciclo=eq.${CYCLE_N}&order=semana.asc`, { headers: okrHeaders });
-  if (!r.ok) {
-    r = await fetch(`${OKR_SUPABASE_URL}/rest/v1/${TABLE}?select=*&order=semana.asc`, { headers: okrHeaders });
-    if (!r.ok) throw new Error('load');
   }
-  return r.json();
-}
-/** Carrega OKR remoto; se falhar, usa cache local. Nunca derruba o init. */
-async function dbLoad() {
-  try {
-    const rows = await dbLoadRemote();
-    saveOkrDbCache(rows);
-    return { rows, remoteOk: true };
-  } catch (_) {
-    return { rows: loadOkrDbCache(), remoteOk: false };
-  }
-}
-async function dbSave(row) {
-  const payload = { ...row, ciclo: CYCLE_N, updated_at: new Date().toISOString() };
-  upsertOkrDbCache(payload);
-  try {
-    let r = await fetch(`${OKR_SUPABASE_URL}/rest/v1/${TABLE}`, {
-      method: 'POST',
-      headers: { ...okrHeaders, Prefer: 'resolution=merge-duplicates,return=representation' },
-      body: JSON.stringify(payload),
+
+  async function refresh() {
+    const jobs = [];
+    jobs.push(async () => {
+      const next = await metrics(liveBounds(), true);
+      LIVE = keep(LIVE, next);
+      if (next) receivedAt = Date.now();
     });
-    if (!r.ok && payload.ciclo != null) {
-      const { ciclo, ...legacy } = payload;
-      r = await fetch(`${OKR_SUPABASE_URL}/rest/v1/${TABLE}`, {
-        method: 'POST',
-        headers: { ...okrHeaders, Prefer: 'resolution=merge-duplicates,return=representation' },
-        body: JSON.stringify(legacy),
+    for (let d = TODAY - 13; d < TODAY; d++) {
+      jobs.push(async () => {
+        const day = d;
+        DAY[day] = keep(DAY[day], await metrics(dayBounds(day), false));
       });
     }
-    if (!r.ok) throw new Error('save');
-    return r.json();
-  } catch (e) {
-    // Projeto OKR offline: mantém cache local e segue sem quebrar métricas.
-    return [payload];
-  }
-}
-async function fetchMetricsForPeriod(inicio, fim) {
-  if (!tespConfigured()) return null;
-  const r = await fetch(`${TESP_SUPABASE_URL}/rest/v1/rpc/${LIVE_METRICS_RPC}`, {
-    method: 'POST',
-    headers: tespHeaders,
-    body: JSON.stringify({ p_inicio: inicio, p_fim: fim }),
-  });
-  if (!r.ok) return null;
-  const data = await r.json();
-  if (!data || (data.wau == null && data.tempo_medio == null)) return null;
-  return {
-    m1: data.wau != null ? Number(data.wau) : null,
-    m3: data.tempo_medio != null ? Number(data.tempo_medio) : null,
-    updatedAt: data.updated_at || null,
-  };
-}
-async function fetchLiveMetrics() {
-  const period = metricsPeriod();
-  return fetchMetricsForPeriod(period.inicio, period.fim);
-}
-async function syncHistoricalMetrics() {
-  if (!tespConfigured()) return false;
-  const cache = loadHistCache();
-  let cacheUpdated = false;
-  const weeks = [];
-  for (let wi = 0; wi <= CURRENT_WEEK; wi++) weeks.push(wi);
-  await Promise.all(weeks.map(wi => {
-    const bounds = weekPeriodBounds(wi);
-    if (!bounds) return Promise.resolve();
-    const key = histCacheKey(wi, bounds);
-    const isComplete = wi < CURRENT_WEEK;
-    if (isComplete && cache[key]) {
-      HIST_METRICS[wi] = cache[key];
-      return Promise.resolve();
+    for (let w = 0; w < WEEK_NOW; w++) {
+      jobs.push(async () => {
+        const week = w;
+        WEEK[week] = keep(WEEK[week], await metrics(weekBounds(week, false), false));
+      });
     }
-    return fetchMetricsForPeriod(bounds.inicio, bounds.fim).then(metrics => {
-      if (!metrics) return;
-      HIST_METRICS[wi] = { m1: metrics.m1, m3: metrics.m3 };
-      if (isComplete) {
-        cache[key] = HIST_METRICS[wi];
-        cacheUpdated = true;
-      }
-    });
-  }));
-  if (cacheUpdated) saveHistCache(cache);
-  return Object.keys(HIST_METRICS).length > 0;
-}
-async function syncRollingDayMetrics(fromDay, toDay) {
-  if (!tespConfigured()) return false;
-  const cache = loadDayCache();
-  let cacheUpdated = false;
-  await Promise.all(Array.from({ length: toDay - fromDay + 1 }, (_, i) => {
-    const d = fromDay + i;
-    if (d > TODAY) return Promise.resolve();
-    const bounds = dayRollingPeriodBounds(d);
-    const ck = rollingCacheKey(d, bounds);
-    const isToday = d === TODAY;
-    if (!isToday && cache[ck]) {
-      DAY_METRICS[d] = cache[ck];
-      return Promise.resolve();
-    }
-    return fetchMetricsForPeriod(bounds.inicio, bounds.fim).then(metrics => {
-      if (!metrics) return;
-      DAY_METRICS[d] = { m1: metrics.m1, m3: metrics.m3 };
-      if (!isToday) {
-        cache[ck] = DAY_METRICS[d];
-        cacheUpdated = true;
-      }
-    });
-  }));
-  if (cacheUpdated) saveDayCache(cache);
-  return Object.keys(DAY_METRICS).length > 0;
-}
-async function syncLiveMetrics() {
-  try {
-    const metrics = await fetchLiveMetrics();
-    if (!metrics) return false;
-    LIVE = { ...metrics, available: metrics.m1 != null || metrics.m3 != null };
-    if (LIVE.available) {
-      const row = {
-        semana: CURRENT_WEEK,
-        m1: LIVE.m1,
-        m3: LIVE.m3,
-        m2: DB[CURRENT_WEEK]?.m2 ?? null,
-        nota: DB[CURRENT_WEEK]?.nota ?? null,
+    jobs.push(async () => {
+      const bounds = weekBounds(WEEK_NOW, true);
+      CAL = keep(CAL, await metrics(bounds, true));
+      const prev = {
+        inicio: new Date(bounds.inicio.getTime() - 7 * 86400000),
+        fim: new Date(bounds.fim.getTime() - 7 * 86400000),
       };
-      await dbSave(row);
-      DB[CURRENT_WEEK] = { ...DB[CURRENT_WEEK], ...row, ciclo: CYCLE_N };
-    }
-    return LIVE.available;
-  } catch (_) {
-    return false;
-  }
-}
-function setSyncState(state, label) {
-  document.getElementById('sync-dot').className = 'sync-dot ' + state;
-  document.getElementById('sync-label').textContent = label;
-}
-let toastTimer;
-function showToast(msg, err) {
-  const el = document.getElementById('toast');
-  el.textContent = msg;
-  el.className = 'toast show' + (err ? ' error' : '');
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => el.className = 'toast', 2500);
-}
-
-function saveRevenueEntries() {
-  localStorage.setItem(REVENUE_CACHE_KEY, JSON.stringify(revenueEntries));
-}
-
-function usersAtDay(d) {
-  if (d >= TODAY) return liveMetric('m1') ?? latestMetric('m1', weekOf(Math.max(1, d)));
-  return eodMetric('m1', d) ?? actualAtDay(d)?.m1 ?? latestMetric('m1', weekOf(Math.max(1, d)));
-}
-function tempoAtDay(d) {
-  if (d >= TODAY) return liveMetric('m3') ?? latestMetric('m3', weekOf(Math.max(1, d)));
-  return eodMetric('m3', d) ?? actualAtDay(d)?.m3 ?? latestMetric('m3', weekOf(Math.max(1, d)));
-}
-function revRealAtDay(d) {
-  const w = weekOf(Math.max(1, d));
-  if (w < CURRENT_WEEK) return DB[w]?.m2 ?? revenueUpToDay(Math.min(weekEndDay(w), d));
-  return revenueUpToDay(d);
-}
-
-function buildSummaryForDay(refDay) {
-  const w = refDay >= 1 ? weekOf(refDay) : 1;
-  const dayOfWeek = refDay >= 1 ? ((refDay - 1) % 7) + 1 : 7;
-  const remainInclWeek = 7 - dayOfWeek + 1;
-  const remainInclCycle = CYCLE_DAYS - Math.max(1, refDay) + 1;
-  const hasRevByDay = revenueEntries.some(e => e.day <= refDay) || Object.keys(DB).some(wk => DB[wk]?.m2 != null && Number(wk) <= w);
-
-  const usersRef = usersAtDay(refDay);
-  const usersPrev = usersAtDay(refDay - 1);
-  const tempoRef = tempoAtDay(refDay);
-  const revRealSemana = revRealAtDay(refDay);
-  const revRealDia = refDay >= 1 ? revenueOnDay(refDay) : 0;
-
-  const usersMetaDia = Math.max(0, (expectedAt(w).m1 - usersRef) / remainInclWeek);
-  const usersRealDia = usersRef - usersPrev;
-
-  const revMetaDia = hasRevByDay ? Math.max(0, (3000 - revRealSemana) / remainInclCycle) : 0;
-  const tempoImprovementNeeded = (tempoRef - 2.0) / remainInclCycle;
-  const tempoMetaDia = tempoRef - tempoImprovementNeeded;
-
-  return {
-    dateLabel: fmtDateShort(dateForDay(refDay)),
-    usersMetaDia, usersRealDia,
-    usersMetaSemana: expectedAt(w).m1,
-    usersRealSemana: usersRef,
-    revMetaDia, revRealDia,
-    revMetaSemana: expectedAt(w).m2,
-    revRealSemana,
-    tempoMetaDia, tempoRealDia: tempoRef,
-    tempoMetaSemana: expectedAt(w).m3,
-    tempoRealSemana: tempoRef,
-  };
-}
-
-function copySummary() {
-  const s = buildSummaryForDay(TODAY - 1);
-  if (!s) return;
-  const text = `GRANA CERTA — ${s.dateLabel}\nUsuários   | meta dia: +${Math.round(s.usersMetaDia)} | real dia: ${s.usersRealDia >= 0 ? '+' : ''}${Math.round(s.usersRealDia)} | meta semana: ${Math.round(s.usersMetaSemana)} | real semana: ${Math.round(s.usersRealSemana)}\nReceita    | meta dia: R$${Math.round(s.revMetaDia)} | real dia: R$${Math.round(s.revRealDia)} | meta semana: R$${Math.round(s.revMetaSemana)} | real semana: R$${Math.round(s.revRealSemana)}\nTempo medio| meta dia: ${s.tempoMetaDia.toFixed(2)}min | real dia: ${s.tempoRealDia.toFixed(2)}min | meta semana: ${s.tempoMetaSemana.toFixed(2)}min | real semana: ${s.tempoRealSemana.toFixed(2)}min`;
-  navigator.clipboard?.writeText(text).catch(() => {});
-  const btn = document.getElementById('btn-copy');
-  document.getElementById('copy-label').textContent = 'Copiado!';
-  btn.classList.add('is-copied');
-  clearTimeout(copyTimer);
-  copyTimer = setTimeout(() => {
-    document.getElementById('copy-label').textContent = 'Copiar resumo';
-    btn.classList.remove('is-copied');
-  }, 1800);
-}
-document.getElementById('btn-copy').onclick = copySummary;
-
-function toggleWeek(w) {
-  expanded[w] = !expanded[w];
-  renderHistory(computeData());
-}
-
-function addRevenueEntry() {
-  const val = parseFloat(String(newEntryValue).replace(',', '.'));
-  if (isNaN(val) || !newEntryDate) return;
-  const day = dayFromISO(newEntryDate);
-  if (day < 1 || day > CYCLE_DAYS) return;
-  revenueEntries = revenueEntries.filter(e => e.day !== day).concat([{ day, iso: newEntryDate, value: val }]).sort((a,b) => a.day - b.day);
-  saveRevenueEntries();
-  newEntryValue = '';
-  render();
-}
-
-function renderHoje(data) {
-  const cards = data.todayCards.map(kr => `
-    <div class="card">
-      <div class="card-head">
-        <div class="card-label">${kr.label}</div>
-        <div class="badge" style="background:${kr.badgeBg};color:${kr.badgeColor}">${kr.badgeLabel}</div>
-      </div>
-      <div class="metric-pair">
-        <div class="metric-box"><div class="metric-key">META HOJE</div><div class="metric-val secondary">${kr.metaLabel}</div></div>
-        <div class="metric-box"><div class="metric-key">REAL HOJE</div><div class="metric-val" style="color:${kr.badgeColor}">${kr.realLabel}</div></div>
-      </div>
-    </div>`).join('');
-  document.getElementById('sec-hoje').innerHTML = `
-    <div class="section-head accent"><div class="section-dash"></div><div class="section-title accent">Hoje · ${data.todayLabel}</div></div>
-    <div class="section-rule"></div>
-    <div class="grid-3">${cards}</div>`;
-}
-
-function renderRevenue(data) {
-  const chips = data.recentEntries.map(e => `<div class="revenue-chip">${e.dateLabel} · ${e.valueLabel}</div>`).join('');
-  document.getElementById('sec-revenue').innerHTML = `
-    <div class="revenue-bar">
-      <label>Lançar receita</label>
-      <input type="date" id="rev-date" value="${newEntryDate}">
-      <input type="number" id="rev-value" placeholder="valor em R$" value="${newEntryValue}">
-      <button class="btn-save btn-add" type="button" id="rev-add">Adicionar</button>
-      <div class="revenue-chips">${chips}</div>
-    </div>`;
-  document.getElementById('rev-date').onchange = e => { newEntryDate = e.target.value; };
-  document.getElementById('rev-value').oninput = e => { newEntryValue = e.target.value; };
-  document.getElementById('rev-add').onclick = addRevenueEntry;
-}
-
-function renderWeek(data) {
-  const cards = data.weekCards.map(kr => `
-    <div class="card">
-      <div class="card-label" style="margin-bottom:14px">${kr.label}</div>
-      <div class="week-grid">
-        <div><div class="metric-key">META SEMANA</div><div class="metric-val" style="color:var(--text-2)">${kr.metaLabel}</div></div>
-        <div><div class="metric-key">REAL SEMANA</div><div class="metric-val">${kr.realLabel}</div></div>
-        <div><div class="metric-key">FALTA</div><div class="metric-val" style="color:var(--text-2)">${kr.faltaLabel}</div></div>
-        <div><div class="metric-key">% ANDADO</div><div class="metric-val" style="color:${kr.pctColor}">${kr.pctLabel}</div></div>
-      </div>
-    </div>`).join('');
-  document.getElementById('sec-week').innerHTML = `
-    <div class="section-title muted" style="margin-bottom:4px">Semana atual · S${String(CURRENT_WEEK).padStart(2,'0')}</div>
-    <div class="section-rule"></div>
-    <div class="grid-3">${cards}</div>`;
-}
-
-function renderTrend(data) {
-  const metrics = data.metricOptions.map(m => `<button class="metric-pill${m.active ? ' is-active' : ''}" data-metric="${m.key}">${m.label}</button>`).join('');
-  const pills = data.periodOptions.map(p => `<button class="period-pill${p.active ? ' is-active' : ''}" data-period="${p.key}">${p.label}</button>`).join('');
-  const customDates = trendPeriod === 'custom' ? `<span style="color:var(--muted);font-size:11px">–</span><input type="date" id="custom-start" value="${customStart}"><span style="color:var(--muted);font-size:11px">–</span><input type="date" id="custom-end" value="${customEnd}">` : '';
-  const ch = data.trendChart;
-  let chartBody;
-  if (ch.empty) {
-    chartBody = `<div class="chart-empty">sem dados suficientes<br>aguardando 1º lançamento</div>`;
-  } else {
-    const gridLines = ch.xTicks.map(xt => `<line x1="${xt.px}" y1="10" x2="${xt.px}" y2="${ch.plotBottom}" stroke="${xt.lineStroke}" stroke-width="${xt.lineWidth}" vector-effect="non-scaling-stroke"/>`).join('');
-    const dots = ch.realDots.map(rd => `<circle cx="${rd.cx}" cy="${rd.cy}" r="3" fill="var(--text)"/>`).join('');
-    const xLabels = ch.xTicks.map(xt => `<text data-x="${xt.px}" x="0" y="0" text-anchor="middle" fill="${xt.isToday ? 'var(--accent)' : 'var(--muted)'}" font-family="Space Grotesk, monospace" font-size="10" font-weight="${xt.isToday ? 700 : 400}">${xt.label}</text>`).join('');
-    const yLabels = ch.yTicks.map(yt => `<div class="chart-axis-y" style="top:${yt.topPct}%">${yt.label}</div>`).join('');
-    const valueLabels = ch.realLabels.map(rl => `<div class="chart-real-label" style="left:${rl.leftPct}%;top:${rl.labelTopPct}%">${rl.label}</div>`).join('');
-    chartBody = `<div class="chart-wrap">
-      <svg viewBox="0 0 900 320" width="100%" height="320" preserveAspectRatio="none">${gridLines}
-        <path d="${ch.metaPath}" fill="none" stroke="var(--muted)" stroke-width="2" stroke-dasharray="5 4" vector-effect="non-scaling-stroke"/>
-        <path d="${ch.projPath}" fill="none" stroke="var(--accent-fill)" stroke-width="2" stroke-dasharray="2 4" vector-effect="non-scaling-stroke"/>
-        <path d="${ch.realPath}" fill="none" stroke="var(--text)" stroke-width="2.5" vector-effect="non-scaling-stroke"/>${dots}${xLabels}
-      </svg>${yLabels}${valueLabels}
-    </div>`;
-  }
-  document.getElementById('sec-trend').innerHTML = `
-    <div class="trend-head">
-      <div class="metric-pills">${metrics}</div>
-      <div class="trend-controls period-pills">${pills}<span class="period-dates">${customDates}</span></div>
-    </div>
-    <div class="card chart-card">
-      <div class="chart-head"><div class="card-label">${ch.label}</div>
-        <div class="chart-legend"><span><i style="background:var(--text)"></i>real</span><span><i style="background:var(--muted)"></i>meta</span><span><i style="background:var(--accent-fill)"></i>proj.</span></div>
-      </div>${chartBody}
-    </div>`;
-  document.querySelectorAll('.metric-pill').forEach(btn => {
-    btn.onclick = () => { trendMetric = btn.dataset.metric; localStorage.setItem('gc-trend-metric', trendMetric); renderTrend(computeData()); };
-  });
-  document.querySelectorAll('.period-pill').forEach(btn => {
-    btn.onclick = () => { trendPeriod = btn.dataset.period; localStorage.setItem('gc-trend-period', trendPeriod); renderTrend(computeData()); };
-  });
-  const cs = document.getElementById('custom-start'), ce = document.getElementById('custom-end');
-  if (cs) cs.onchange = e => { customStart = e.target.value; localStorage.setItem('gc-custom-start', customStart); trendPeriod = 'custom'; renderTrend(computeData()); };
-  if (ce) ce.onchange = e => { customEnd = e.target.value; localStorage.setItem('gc-custom-end', customEnd); trendPeriod = 'custom'; renderTrend(computeData()); };
-  alignChartLabels();
-}
-
-/** Rótulos do eixo X ficam no mesmo x da coluna, sem serem esticados pelo preserveAspectRatio. */
-function alignChartLabels() {
-  const svg = document.querySelector('#sec-trend .chart-wrap svg');
-  if (!svg) return;
-  const scaleX = svg.getBoundingClientRect().width / CHART_W || 1;
-  const unscale = (1 / scaleX).toFixed(4);
-  svg.querySelectorAll('text[data-x]').forEach(t => {
-    t.setAttribute('transform', `translate(${t.getAttribute('data-x')} 312) scale(${unscale} 1)`);
-  });
-}
-window.addEventListener('resize', alignChartLabels);
-
-function renderHistory(data) {
-  if (!data?.weeks) return;
-  const weeks = data.weeks.map(wk => {
-    const open = expanded[wk.n] ? ' is-open' : '';
-    const metrics = (wk.metrics || []).map(m => `
-      <div class="week-metric-row">
-        <div class="week-metric-label">${m.label}</div>
-        <div class="week-metric-val" data-col="Meta">${m.metaLabel}</div>
-        <div class="week-metric-val" data-col="Real">${m.realLabel}</div>
-        <div class="week-metric-val" data-col="Alcançado" style="color:${m.pctColor}">${m.pctLabel}</div>
-      </div>`).join('');
-    return `<div class="week-row${wk.isCurrent ? ' is-current' : ''}${wk.isFuture ? ' is-future' : ''}${open}" id="wk-${wk.n}">
-      <div class="week-row-head" onclick="toggleWeek(${wk.n})">
-        <div style="display:flex;align-items:center;gap:16px">
-          <div class="week-num">S${String(wk.n).padStart(2,'0')}</div>
-          <div class="week-dots"><i style="background:${wk.dotUsers}"></i><i style="background:${wk.dotRevenue}"></i><i style="background:${wk.dotTempo}"></i></div>
-        </div>
-        <div class="week-meta">
-          <div class="week-dates">${wk.dateRange}</div>
-          <div class="status-chip" style="background:${wk.statusBg};color:${wk.statusColor}">${wk.statusLabel}</div>
-          <div class="week-chevron">▾</div>
-        </div>
-      </div>
-      <div class="week-body">
-        <div class="week-metrics-head">
-          <div></div>
-          <div>Meta</div>
-          <div>Real</div>
-          <div>Alcançado</div>
-        </div>
-        ${metrics}
-      </div>
-    </div>`;
-  }).join('');
-  document.getElementById('sec-history').innerHTML = `
-    <div class="section-title muted" style="margin-bottom:4px">Registro semanal · histórico</div>
-    <div class="section-rule"></div>${weeks}`;
-}
-
-function computeData() {
-  const w = CURRENT_WEEK;
-  const dayOfWeek = ((TODAY - 1) % 7) + 1;
-  const remainInclWeek = 7 - dayOfWeek + 1;
-  const remainInclCycle = CYCLE_DAYS - TODAY + 1;
-  const hasEntries = revenueEntries.length > 0;
-
-  // REAL SEMANA = WAU dos últimos 7×24h até agora (sem interpolar).
-  const usersToday = liveMetric('m1') ?? latestMetric('m1', w);
-  // REAL HOJE = WAU agora − WAU no fim de ontem (23:59:59).
-  const usersYesterdayEod = eodMetric('m1', TODAY - 1);
-  const tempoToday = liveMetric('m3') ?? latestMetric('m3', w);
-  const revenueCum = revenueUpToDay(TODAY);
-  const revenueToday = revenueOnDay(TODAY);
-  const weekRevFromDb = DB[w]?.m2;
-  const revRealSemana = weekRevFromDb != null ? weekRevFromDb : revenueCum;
-
-  const usersMetaDia = Math.max(0, (weekMeta(w).m1 - usersToday) / remainInclWeek);
-  const usersRealDia = usersYesterdayEod != null ? usersToday - usersYesterdayEod : 0;
-  const usersBadge = usersYesterdayEod == null ? 'neutral' : (usersRealDia >= usersMetaDia ? 'success' : 'danger');
-
-  const revMetaDia = hasEntries || weekRevFromDb != null ? Math.max(0, (3000 - revRealSemana) / remainInclCycle) : 0;
-  const revBadge = !hasEntries && weekRevFromDb == null ? 'neutral' : (revenueToday >= revMetaDia ? 'success' : 'danger');
-
-  const tempoImprovementNeeded = (tempoToday - 2.0) / remainInclCycle;
-  const tempoMetaDia = tempoToday - tempoImprovementNeeded;
-  const tempoBadge = tempoToday <= tempoMetaDia ? 'success' : 'danger';
-
-  const bU = badgeStyle(usersBadge), bR = badgeStyle(revBadge), bT = badgeStyle(tempoBadge);
-  const todayCards = [
-    { label: 'Usuários (WAU)', metaLabel: '+' + Math.round(usersMetaDia), realLabel: usersYesterdayEod == null ? '—' : ((usersRealDia >= 0 ? '+' : '') + Math.round(usersRealDia)), badgeBg: bU.bg, badgeColor: bU.color, badgeLabel: bU.label },
-    { label: 'Receita', metaLabel: hasEntries || weekRevFromDb != null ? fmtMoney(revMetaDia) : '—', realLabel: hasEntries ? fmtMoney(revenueToday) : (weekRevFromDb != null ? fmtMoney(revenueToday) : '—'), badgeBg: bR.bg, badgeColor: bR.color, badgeLabel: bR.label },
-    { label: 'Tempo médio', metaLabel: fmtMin(tempoMetaDia), realLabel: fmtMin(tempoToday), badgeBg: bT.bg, badgeColor: bT.color, badgeLabel: bT.label },
-  ];
-
-  const weekTarget = weekMeta(w);
-  const usersMetaSemana = weekTarget.m1;
-  const usersRealSemana = usersToday;
-  const revMetaSemana = weekTarget.m2;
-  const tempoMetaSemana = weekTarget.m3;
-  const tempoRealSemana = tempoToday;
-  const usersPct = (usersRealSemana / usersMetaSemana) * 100;
-  const revPct = revMetaSemana > 0 ? (revRealSemana / revMetaSemana) * 100 : 0;
-  const tempoPct = (tempoMetaSemana / tempoRealSemana) * 100;
-
-  const weekCards = [
-    { label: 'Usuários (WAU)', metaLabel: fmtInt(usersMetaSemana), realLabel: fmtInt(usersRealSemana), faltaLabel: fmtInt(Math.max(0, usersMetaSemana - usersRealSemana)), pctLabel: Math.round(usersPct) + '%', pctColor: pctColor(usersPct) },
-    { label: 'Receita', metaLabel: fmtMoney(revMetaSemana), realLabel: fmtMoney(revRealSemana), faltaLabel: fmtMoney(Math.max(0, revMetaSemana - revRealSemana)), pctLabel: Math.round(revPct) + '%', pctColor: hasEntries || weekRevFromDb != null ? pctColor(revPct) : 'var(--muted)' },
-    { label: 'Tempo médio', metaLabel: fmtMin(tempoMetaSemana), realLabel: fmtMin(tempoRealSemana), faltaLabel: fmtMin(Math.max(0, tempoRealSemana - tempoMetaSemana)), pctLabel: Math.round(tempoPct) + '%', pctColor: pctColor(tempoPct) },
-  ];
-
-  const periodOptions = ['7','14','cycle','custom'].map(key => ({
-    key, label: key === '7' ? '7 dias' : key === '14' ? '14 dias' : key === 'cycle' ? 'Ciclo completo' : 'Custom',
-    active: trendPeriod === key,
-  }));
-
-  const metricOptions = [
-    { key: 'users', label: 'Usuários' },
-    { key: 'revenue', label: 'Receita' },
-    { key: 'tempo', label: 'Tempo médio' },
-  ].map(m => ({ ...m, active: trendMetric === m.key }));
-
-  const md = TREND_METRICS[trendMetric] || TREND_METRICS.users;
-  const trendChart = buildChart(md.label, md.key, trendMetricHasData(md.key), md.fmt, trendPeriod === 'cycle');
-
-  const statusStyles = {
-    done: { label: 'CONCLUÍDA', bg: 'var(--overlay)', color: 'var(--text-2)' },
-    current: { label: 'ATUAL', bg: 'var(--accent-subtle)', color: 'var(--accent)' },
-    future: { label: 'FUTURA', bg: 'transparent', color: 'var(--muted)' },
-  };
-
-  const weeks = [];
-  for (let wi = 0; wi <= 12; wi++) {
-    const status = wi < w ? 'done' : wi === w ? 'current' : 'future';
-    const ss = statusStyles[status];
-    const row = DB[wi] || {};
-    const fullEndDay = weekEndDay(wi);
-    const metaFull = weekMeta(wi);
-    let dotUsers = 'var(--border)', dotRevenue = 'var(--border)', dotTempo = 'var(--border)';
-    let metrics;
-    const cf = p => { const tr = tierOf(p); return tr === 'success' ? 'var(--ok)' : tr === 'warning' ? 'var(--risk)' : 'var(--danger)'; };
-
-    if (status !== 'future') {
-      const endDay = Math.min(fullEndDay, TODAY);
-      const uAct = wi === w
-        ? (liveMetric('m1') ?? historyMetricAtWeek('m1', wi))
-        : historyMetricAtWeek('m1', wi);
-      const tAct = wi === w
-        ? (liveMetric('m3') ?? historyMetricAtWeek('m3', wi))
-        : historyMetricAtWeek('m3', wi);
-      const rAct = row.m2 != null ? row.m2 : (wi === 0 ? null : (hasEntries ? revenueUpToDay(endDay) : null));
-      const exp = wi === 0 ? weekMeta(0) : expectedAtDay(endDay);
-      const hasUsers = uAct != null;
-      const hasTempo = tAct != null;
-      const hasRev = hasEntries || row.m2 != null;
-      const pu = hasUsers && exp.m1 > 0 ? (uAct / exp.m1) * 100 : null;
-      const ptp = hasTempo && tAct > 0 ? (exp.m3 / tAct) * 100 : null;
-      const pr = hasRev && exp.m2 > 0 ? (rAct / exp.m2) * 100 : null;
-      dotUsers = pu != null ? cf(pu) : 'var(--border)';
-      dotTempo = ptp != null ? cf(ptp) : 'var(--border)';
-      dotRevenue = pr != null ? cf(pr) : 'var(--border)';
-      metrics = [
-        {
-          label: 'Usuários (WAU)',
-          metaLabel: fmtInt(exp.m1),
-          realLabel: hasUsers ? fmtInt(uAct) : '—',
-          pctLabel: pu != null ? Math.round(pu) + '%' : '—',
-          pctColor: pu != null ? cf(pu) : 'var(--muted)',
-        },
-        {
-          label: 'Receita (R$)',
-          metaLabel: fmtMoney(exp.m2),
-          realLabel: hasRev ? fmtMoney(rAct) : '—',
-          pctLabel: pr != null ? Math.round(pr) + '%' : '—',
-          pctColor: pr != null ? cf(pr) : 'var(--muted)',
-        },
-        {
-          label: 'Tempo médio',
-          metaLabel: fmtMin(exp.m3),
-          realLabel: hasTempo ? fmtMin(tAct) : '—',
-          pctLabel: ptp != null ? Math.round(ptp) + '%' : '—',
-          pctColor: ptp != null ? cf(ptp) : 'var(--muted)',
-        },
-      ];
-    } else {
-      metrics = [
-        { label: 'Usuários (WAU)', metaLabel: fmtInt(metaFull.m1), realLabel: '—', pctLabel: '—', pctColor: 'var(--muted)' },
-        { label: 'Receita (R$)', metaLabel: fmtMoney(metaFull.m2), realLabel: '—', pctLabel: '—', pctColor: 'var(--muted)' },
-        { label: 'Tempo médio', metaLabel: fmtMin(metaFull.m3), realLabel: '—', pctLabel: '—', pctColor: 'var(--muted)' },
-      ];
-    }
-
-    if (expanded[wi] === undefined && wi === w) expanded[wi] = true;
-    weeks.push({
-      n: wi, isCurrent: wi === w, isFuture: wi > w,
-      dateRange: weekRangeLabel(wi),
-      statusLabel: ss.label, statusBg: ss.bg, statusColor: ss.color,
-      dotUsers, dotRevenue, dotTempo,
-      metrics,
+      CAL_PREV = keep(CAL_PREV, await metrics(prev, true));
     });
-  }
-
-  const recentEntries = revenueEntries.slice(-3).reverse().map(e => ({ dateLabel: fmtDateShort(dateForDay(e.day)), valueLabel: fmtMoney(e.value) }));
-
-  document.getElementById('header-cycle').innerHTML = `Ciclo ${CYCLE_N} · Semana ${w} de 12 · <em>faltam ${CYCLE_DAYS - TODAY} dias</em>`;
-
-  return { todayLabel: fmtDateShort(dateForDay(TODAY)), todayCards, weekCards, periodOptions, metricOptions, trendChart, weeks, recentEntries };
-}
-
-function render() {
-  const data = computeData();
-  renderHoje(data);
-  renderRevenue(data);
-  renderWeek(data);
-  renderTrend(data);
-  renderHistory(data);
-}
-
-async function init() {
-  if (!newEntryDate) newEntryDate = isoForDay(TODAY);
-  if (!customStart) customStart = isoForDay(TODAY - 13);
-  if (!customEnd) customEnd = isoForDay(TODAY);
-  setSyncState('syncing', 'Conectando');
-  try {
-    const { rows, remoteOk: okrRemoteOk } = await dbLoad();
-    DB = {};
-    rows.forEach(r => {
-      if (r.ciclo === CYCLE_N || (r.ciclo == null && CYCLE_N <= 2)) DB[r.semana] = r;
+    const now = new Date();
+    const yesterday = new Date(now.getTime() - 86400000);
+    jobs.push(async () => {
+      LIVE15 = keep(LIVE15, await metrics({ inicio: new Date(now.getTime() - 15 * 60 * 1000), fim: now }, true));
     });
-    setSyncState('syncing', 'Buscando métricas');
-    const liveOk = await syncLiveMetrics();
-    setSyncState('syncing', 'Carregando histórico');
-    const histOk = await syncHistoricalMetrics();
-    const rollOk = await syncRollingDayMetrics(TODAY - 14, TODAY);
-    const metricsOk = liveOk || histOk || rollOk;
-    if (metricsOk) {
-      setSyncState('synced', okrRemoteOk ? 'Dados ao vivo' : 'Dados ao vivo · OKR offline');
-      if (!okrRemoteOk) showToast('OKR offline — usando cache local');
-    } else if (okrRemoteOk) {
-      setSyncState('synced', 'OKR conectado');
-    } else if (rows.length) {
-      setSyncState('error', 'Sem conexão');
-      showToast('Sem conexão — cache local', true);
-    } else {
-      setSyncState('error', 'Sem conexão');
-      showToast('Erro ao conectar', true);
-    }
-  } catch(e) {
-    setSyncState('error', 'Sem conexão');
-    showToast('Erro ao conectar', true);
+    jobs.push(async () => {
+      LIVE15Y = keep(LIVE15Y, await metrics({ inicio: new Date(yesterday.getTime() - 15 * 60 * 1000), fim: yesterday }, true));
+    });
+    await pool(jobs, 6);
+    if (CUSTOM && CUSTOM.start && CUSTOM.end) await loadPeriod(CUSTOM.start, CUSTOM.end);
   }
-  render();
-  setInterval(async () => {
-    const prevLive = LIVE.available;
-    const ok = await syncLiveMetrics();
-    const histOk = await syncHistoricalMetrics();
-    const rollOk = await syncRollingDayMetrics(TODAY - 14, TODAY);
-    if (ok || histOk || rollOk || prevLive !== LIVE.available) {
-      setSyncState('synced', ok || histOk || rollOk ? 'Dados ao vivo' : 'OKR conectado');
-      render();
-    }
-  }, 5 * 60 * 1000);
-}
 
-init();
+  function m1(slot) {
+    return slot && slot.m1 != null ? slot.m1 : null;
+  }
+  function m3(slot) {
+    return slot && slot.m3 != null ? slot.m3 : null;
+  }
+
+  function dayPoint(d) {
+    const future = d > TODAY;
+    const slot = d === TODAY ? LIVE : DAY[d];
+    const hasRev = revenueEntries.length > 0;
+    return {
+      day: d,
+      label: fmtShort(dateForDay(d)),
+      future,
+      users: future ? null : m1(slot),
+      usersMeta: metaOnDay(USERS, d),
+      wait: future ? null : m3(slot),
+      waitMeta: metaOnDay(WAIT, d),
+      rev: future || !hasRev ? null : revenueUpTo(d),
+      revMeta: metaOnDay(REV, d),
+    };
+  }
+
+  function weekRange(w) {
+    if (w === 0) {
+      const end = new Date(CICLO_START.getTime() - 86400000);
+      return fmtShort(WEEK0_START) + '–' + fmtShort(end);
+    }
+    return fmtShort(dateForDay((w - 1) * 7 + 1)) + '–' + fmtShort(dateForDay(w * 7));
+  }
+
+  function buildModel() {
+    const theme = document.documentElement.getAttribute('data-theme') || 'dark';
+    const dow = TODAY >= 1 ? ((Math.min(TODAY, 84) - 1) % 7) + 1 : 7;
+    const remain = Math.max(1, 7 - dow + 1);
+    const usersReal = m1(LIVE);
+    const waitReal = m3(LIVE);
+    const yday = DAY[TODAY - 1];
+    const daysLeft = Math.max(0, CYCLE_DAYS - Math.max(TODAY, 0));
+    const endDate = dateForDay(WEEK_END);
+    const todayDate = dateForDay(Math.max(TODAY, 1));
+    const hasRev = revenueEntries.length > 0;
+    const weeks = [];
+    for (let i = 0; i <= 12; i++) {
+      const endDay = i === 0 ? 0 : Math.min(i * 7, Math.max(TODAY, 0));
+      const slot = i < WEEK_NOW ? WEEK[i] : null;
+      weeks.push({
+        i,
+        range: weekRange(i),
+        users: i < WEEK_NOW ? m1(slot) : null,
+        wait: i < WEEK_NOW ? m3(slot) : null,
+        rev: hasRev && i <= WEEK_NOW ? revenueUpTo(endDay) : null,
+        usersTarget: USERS[i],
+        waitTarget: WAIT[i],
+        revTarget: REV[i],
+      });
+    }
+    const base = (active, prev, copy) => Object.assign({ active, prev }, copy);
+    const periods = {
+      hoje: base(usersReal, m1(yday), { cmp: 'comparado com ontem', lbl: 'hoje', vs: 'ontem' }),
+      ontem: base(m1(yday), m1(DAY[TODAY - 8]), { cmp: 'comparado com os 7 dias anteriores', lbl: 'ontem', vs: 'os 7 dias anteriores' }),
+      semana: base(m1(CAL), m1(CAL_PREV), { cmp: 'comparado com os mesmos dias da semana passada', lbl: 'esta semana', vs: 'os mesmos dias da semana passada' }),
+      passada: base(m1(WEEK[WEEK_NOW - 1]), m1(WEEK[WEEK_NOW - 2]), { cmp: 'comparado com a semana anterior', lbl: 'semana passada', vs: 'a semana anterior' }),
+      custom: CUSTOM || { cmp: 'comparado com o período anterior', lbl: 'o período escolhido', vs: 'o período anterior', active: null, prev: null },
+    };
+    const days = [];
+    const lastDay = Math.max(WEEK_END, TODAY) + 3;
+    for (let d = TODAY - 13; d <= lastDay; d++) days.push(dayPoint(d));
+
+    return {
+      theme,
+      receivedAt,
+      updatedLabel: LIVE && LIVE.updatedAt ? clock(new Date(LIVE.updatedAt)) : null,
+      cycle: {
+        n: CYCLE_N,
+        week: WEEK_NOW,
+        weeks: 12,
+        daysLeft,
+        leftLabel: daysLeft === 1 ? 'falta 1 dia' : 'faltam ' + daysLeft + ' dias',
+        objective: 'Conseguir monetizar o app',
+      },
+      today: {
+        day: TODAY,
+        label: weekday(todayDate, 'short').toLowerCase() + ', ' + fmtShort(todayDate),
+        short: fmtShort(todayDate),
+        iso: isoStamp(todayDate),
+        weekAgoIso: isoStamp(dateForDay(TODAY - 6)),
+        weekEndLabel: weekday(endDate, 'long').toLowerCase() + ', ' + fmtShort(endDate),
+        weekEndDay: WEEK_END,
+      },
+      pace: { users: metaOnDay(USERS, TODAY), wait: metaOnDay(WAIT, TODAY), rev: metaOnDay(REV, TODAY) },
+      users: usersReal == null ? null : {
+        real: usersReal,
+        metaToday: metaOnDay(USERS, TODAY),
+        delta: yday && yday.m1 != null ? usersReal - yday.m1 : null,
+        neededToday: (USERS[WEEK_NOW] - usersReal) / remain,
+      },
+      wait: waitReal == null ? null : { real: waitReal, metaToday: metaOnDay(WAIT, TODAY) },
+      revenue: { hasEntries: hasRev, real: revenueUpTo(TODAY), metaToday: metaOnDay(REV, TODAY) },
+      running: LIVE15 && LIVE15.m1 != null ? {
+        now: LIVE15.m1,
+        delta: LIVE15Y && LIVE15Y.m1 != null ? LIVE15.m1 - LIVE15Y.m1 : null,
+      } : null,
+      periods,
+      weeks,
+      days,
+      loadPeriod,
+      loadDays,
+      saveRevenue,
+    };
+  }
+
+  async function loadPeriod(startIso, endIso) {
+    if (!startIso || !endIso) return CUSTOM;
+    let start = new Date(startIso + 'T00:00:00-03:00');
+    let end = new Date(endIso + 'T00:00:00-03:00');
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) return CUSTOM;
+    if (start > end) { const swap = start; start = end; end = swap; }
+    const fim = new Date(end.getTime() + 86400000);
+    const prevFim = start;
+    const prevInicio = new Date(start.getTime() - (fim - start));
+    const [cur, prev] = await Promise.all([
+      metrics({ inicio: start, fim }, true),
+      metrics({ inicio: prevInicio, fim: prevFim }, true),
+    ]);
+    CUSTOM = {
+      cmp: 'comparado com o período anterior',
+      lbl: fmtShort(start) + '–' + fmtShort(end),
+      vs: 'o período anterior',
+      active: m1(cur),
+      prev: m1(prev),
+      start: isoStamp(start),
+      end: isoStamp(end),
+    };
+    return CUSTOM;
+  }
+
+  async function loadDays(startIso, endIso) {
+    let a = dayFromIso(startIso);
+    let b = dayFromIso(endIso);
+    if (isNaN(a) || isNaN(b)) return [];
+    if (a > b) { const swap = a; a = b; b = swap; }
+    b = Math.min(b, a + 90);
+    const jobs = [];
+    for (let d = a; d <= b && d < TODAY; d++) {
+      const day = d;
+      jobs.push(async () => { DAY[day] = keep(DAY[day], await metrics(dayBounds(day), false)); });
+    }
+    if (b >= TODAY && a <= TODAY) jobs.push(async () => { LIVE = keep(LIVE, await metrics(liveBounds(), true)); });
+    await pool(jobs, 6);
+    const out = [];
+    for (let d = a; d <= b; d++) out.push(dayPoint(d));
+    return out;
+  }
+
+  function saveRevenue(entry) {
+    const day = dayFromIso(entry.iso);
+    if (!entry.iso || isNaN(day) || day < -6 || day > CYCLE_DAYS) {
+      return { ok: false, error: 'Escolha uma data dentro do ciclo.' };
+    }
+    revenueEntries = revenueEntries
+      .filter(e => e.day !== day)
+      .concat([{ day, iso: entry.iso, value: entry.value, origin: entry.origin || '' }])
+      .sort((a, b) => a.day - b.day);
+    try { localStorage.setItem(REVENUE_KEY, JSON.stringify(revenueEntries)); } catch (_) {}
+    return { ok: true, model: buildModel() };
+  }
+
+  async function boot() {
+    try { await refresh(); } catch (_) {}
+    GCM.render(document.getElementById('app'), buildModel());
+    setInterval(async () => {
+      try { await refresh(); } catch (_) {}
+      GCM.setModel(buildModel());
+    }, 5 * 60 * 1000);
+  }
+  boot();
+})();
 </script>
 </body>
 </html>
