@@ -227,7 +227,7 @@
 .gm .li .lb{font-size:16px}.gm .li p{font-size:14px}
 .gm .eq{font-size:15px;padding:16px 20px}
 .gm .fn{margin-top:0}
-.gm .st{display:grid;grid-template-columns:260px 1fr 80px;align-items:center;gap:16px}
+.gm .st{display:grid;grid-template-columns:260px minmax(0,1fr) max-content;align-items:center;gap:16px}
 .gm .st-h{display:contents}
 .gm .st-h .ix{display:none}
 .gm .st-h .nm{grid-column:1;font-size:16px}
@@ -236,8 +236,7 @@
 .gm .cn{padding:10px 0 10px 276px;font-size:13.5px}
 .gm .opsb{grid-column:1/-1!important;display:grid;grid-template-columns:1.5fr 1fr;gap:72px}
 .gm .sec[data-screen-label="Operação"]{display:block}.gm .sec[data-screen-label="Operação"] .ls{grid-template-columns:repeat(3,1fr);margin-top:28px}.gm .opsb{margin-top:56px}.gm .opsb .sb{margin-top:0}
-.gm .tr{grid-template-columns:28px 1fr 160px 110px 80px;font-size:15px}
-.gm .tr .ct{display:none}
+.gm .tr{grid-template-columns:28px minmax(0,1fr) 120px 72px;font-size:15px}
 .gm .tr:not(.cy)>span:nth-child(2)::after{content:none}
 .gm .tr.cy{grid-template-columns:28px 1fr 40px 70px 80px}
 .gm .gp{margin-top:0;grid-template-columns:repeat(3,1fr);gap:32px}
@@ -267,7 +266,7 @@
 }
 .gm .big.nc,.gm .mr .big.nc,.gm .li .big.nc,.gm .lc-r .big.nc{font-family:'Barlow',system-ui,sans-serif;font-size:16px;font-weight:600;letter-spacing:0;line-height:1.3;color:var(--t3)}
 .gm .wc b.nc,.gm .wkh .wc b.nc{font-family:'Barlow',system-ui,sans-serif;font-size:12px;font-weight:600;letter-spacing:0;color:var(--t3);white-space:normal}
-.gm .st-h .v.nc{font-family:'Barlow',system-ui,sans-serif;font-size:14px;font-weight:600;color:var(--t3)}
+.gm .st-h .v.nc{font-family:'Barlow',system-ui,sans-serif;font-size:14px;font-weight:600;color:var(--t3);white-space:nowrap}
 .gm .lc-r span.down{color:var(--bad)}
 .gm .lc-r span.flat{color:var(--t2)}
 .gm .chart-empty{padding:48px 16px;text-align:center;color:var(--t2);font-size:14px}
