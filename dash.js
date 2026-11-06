@@ -14,6 +14,7 @@
   const pill = s => `<span class="pill s-${s}"><i></i>${SL[s]}</span>`;
   const G = {
     ativo: 'Entregador que, nos últimos 7 dias, fez pelo menos uma coleta ou recebeu pelo menos uma oferta com o Grana Certa.',
+    ativoPeriodo: 'Entregador que fez pelo menos uma coleta no período selecionado.',
     rodando: 'Usuário ativo com coleta ou oferta recebida nos últimos 15 minutos.',
     novo: 'Ativo neste período que não estava ativo no período anterior.',
     retido: 'Ativo neste período e também no período anterior.',
@@ -23,12 +24,13 @@
     tempo: 'Média do tempo que os entregadores esperaram nas lojas no período. Quanto menor, melhor.',
   };
   const FS = [
-    ['Visitaram o site', 'Pessoas que acessaram o site pela primeira vez.'],
-    ['Abriram o login', 'Chegaram à tela de login do app.'],
-    ['Fizeram login', 'Fizeram o primeiro login com o e-mail.'],
-    ['Ativaram a acessibilidade', 'Ativaram a acessibilidade pela primeira vez com esse e-mail.'],
-    ['Viraram ativos', 'Fizeram a primeira coleta ou receberam a primeira oferta.'],
+    ['Fizeram login', 'Criaram a conta neste período, com e-mail. Uma pessoa por conta.'],
+    ['Ativaram a acessibilidade', 'Desses novos logins, quantos estão com a acessibilidade ligada agora.'],
+    ['Viraram ativos', 'Desses novos logins, quantos fizeram a primeira coleta neste período.'],
   ];
+  const esc = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  const pf = n => (Math.round(Number(n) * 10) / 10).toFixed(1).replace('.', ',');
+  const pp = n => (Math.round(Number(n) * 10) / 10).toFixed(1).replace('.', ',');
   const big = (value, html) => value == null ? '<span class="big nc">sem conexão</span>' : `<span class="big">${html}</span>`;
 
   function statusOf(real, meta, lower) {
@@ -211,14 +213,20 @@
     return `<div class="pd"><div class="pd-t"><b>Período</b><span class="js-cmpl">${cur.cmp}</span></div><div class="seg">${keys.map(k => `<button data-p="${k}" class="${k === st.period ? 'on' : ''}">${labels[k]}</button>`).join('')}</div><div class="cus${cus}"><input class="inp js-p0" type="date" value="${st.p0}" aria-label="De"><input class="inp js-p1" type="date" value="${st.p1}" aria-label="Até"><button class="btn pri js-papply">Aplicar</button></div></div>`;
   }
 
+  function deltaLine(n) {
+    if (n === 0) return 'igual ao período anterior';
+    return (n > 0 ? '+' : '−') + nf(Math.abs(n)) + ' vs. período anterior';
+  }
+
   function base() {
     const p = model.periods[st.period] || model.periods.hoje;
     const active = p.active;
     const prev = p.prev;
+    const linked = p.added != null && p.retained != null && p.lost != null;
     let say = '';
     if (active == null) say = `<p class="say">${OFF}</p>`;
     else if (prev != null) {
-      const d = active - prev;
+      const d = linked ? p.added - p.lost : active - prev;
       say = d > 0
         ? `<p class="say">A base cresceu <b class="c-ok">+${nf(d)}</b> ativos.</p>`
         : d < 0
@@ -226,32 +234,96 @@
           : '<p class="say">A base ficou estável.</p>';
     }
     const li = (lb, tip, value, sub) => `<div class="li"><div><span class="lb">${lb} ${help(tip)}</span><p>${sub}</p></div>${value}</div>`;
-    const ativoSub = active != null && prev != null
-      ? `${active - prev >= 0 ? '+' : '−'}${nf(Math.abs(active - prev))} vs. período anterior`
-      : p.lbl;
+    const ativoSub = active != null && prev != null ? deltaLine(active - prev) : p.lbl;
+    const retSub = !linked ? OFF : (prev > 0 ? Math.round(p.retained / prev * 100) + '% dos ativos anteriores continuaram' : 'ninguém no período anterior');
+    const eq = linked
+      ? `<b>${nf(prev)}</b> no período anterior − <b>${nf(p.lost)}</b> perdidos + <b>${nf(p.added)}</b> novos = <b>${nf(active)}</b> agora`
+      : OFF;
     return `<section class="sec" data-screen-label="Base de usuários"><div class="sh"><h3>Base de usuários</h3><p class="ss">Quem chegou, quem ficou e quem saiu · ${p.lbl} vs. ${p.vs}</p>${say}</div><div class="ls">
-${li('Ativos', G.ativo, big(active, active == null ? '' : nf(active)), ativoSub)}
-${li('Novos', G.novo, big(null), OFF)}
-${li('Retidos', G.retido, big(null), OFF)}
-${li('Perdidos', G.perdido, big(null), OFF)}
-</div><div class="eq">${OFF}</div></section>`;
+${li('Ativos', G.ativoPeriodo, big(active, active == null ? '' : nf(active)), ativoSub)}
+${li('Novos', G.novo, big(linked ? p.added : null, linked ? nf(p.added) : ''), linked ? 'não estavam ativos no período anterior' : OFF)}
+${li('Retidos', G.retido, big(linked ? p.retained : null, linked ? nf(p.retained) : ''), retSub)}
+${li('Perdidos', G.perdido, big(linked ? p.lost : null, linked ? nf(p.lost) : ''), linked ? 'estavam ativos e pararam' : OFF)}
+</div><div class="eq">${eq}</div></section>`;
   }
 
   function funnel() {
     const p = model.periods[st.period] || model.periods.hoje;
-    const stages = FS.map((item, i) => `<div class="st"><div class="st-h"><span class="ix">${i + 1}</span><span class="nm">${item[0]} ${help(item[1])}</span><span class="v nc">${OFF}</span></div></div>`).join('');
-    return `<section class="sec" data-screen-label="Funil de aquisição"><div class="sh"><h3>Funil de aquisição</h3><p class="ss">Do primeiro acesso ao site até virar usuário ativo · ${p.lbl}</p><p class="say">${OFF}</p></div><div class="fn">${stages}</div></section>`;
+    const fun = p.funnel;
+    let say = OFF;
+    let stages = '';
+    let callout = '';
+    if (!fun) {
+      stages = FS.map((item, i) => `<div class="st"><div class="st-h"><span class="ix">${i + 1}</span><span class="nm">${item[0]} ${help(item[1])}</span><span class="v nc">${OFF}</span></div></div>`).join('');
+    } else if (fun.login === 0) {
+      say = 'Nenhum login novo neste período.';
+      stages = FS.map((item, i) => `<div class="st"><div class="st-h"><span class="ix">${i + 1}</span><span class="nm">${item[0]} ${help(item[1])}</span><span class="v">0</span></div><div class="st-b"></div></div>`).join('');
+    } else {
+      const steps = [fun.login, fun.accessibility, fun.active];
+      const drops = [
+        { from: 0, to: 1, lost: steps[0] - steps[1] },
+        { from: 1, to: 2, lost: steps[1] - steps[2] },
+      ];
+      const worst = drops.reduce((a, b) => (b.lost > a.lost ? b : a));
+      const pct = (Math.round(fun.active / fun.login * 1000) / 10).toFixed(1).replace('.', ',');
+      say = `<b>${nf(fun.active)}</b> de <b>${nf(fun.login)}</b> novos logins viraram ativos (${pct}%).`;
+      stages = FS.map((item, i) => {
+        const value = steps[i];
+        const width = Math.max(0, Math.min(100, value / fun.login * 100));
+        const bar = value > 0 ? `<div class="st-b"><i style="width:${width}%"></i></div>` : '<div class="st-b"></div>';
+        const bridge = i === 0 ? '' : (() => {
+          const drop = drops[i - 1];
+          if (drop.lost <= 0) return '<div class="cn"><span>todos seguiram</span></div>';
+          const mark = drop === worst ? ' mx' : '';
+          const tag = drop === worst ? '<span class="ls2">pararam aqui</span>' : '';
+          return `<div class="cn${mark}"><span>${nf(drop.lost)} não seguiram</span>${tag}</div>`;
+        })();
+        return `${bridge}<div class="st"><div class="st-h"><span class="ix">${i + 1}</span><span class="nm">${item[0]} ${help(item[1])}</span><span class="v">${nf(value)}</span></div>${bar}</div>`;
+      }).join('');
+      if (worst.lost > 0) {
+        callout = `<div class="callout"><i class="dot"></i><span>A maior perda foi entre ${esc(FS[worst.from][0])} e ${esc(FS[worst.to][0])}: ${nf(worst.lost)} pararam.</span></div>`;
+      }
+    }
+    return `<section class="sec" data-screen-label="Funil de aquisição"><div class="sh"><h3>Funil de aquisição</h3><p class="ss">Do primeiro login até virar ativo · ${p.lbl}</p><p class="say">${say}</p></div><div class="fn">${stages}</div>${callout}</section>`;
+  }
+
+  function storeTable(rows) {
+    if (rows == null) return `<div class="empty">${OFF}</div>`;
+    if (!rows.length) return '<div class="empty">Ainda não há coletas suficientes neste período.</div>';
+    const head = '<div class="tr th"><span>#</span><span>Loja · Cidade</span><span class="r">Espera média</span><span class="r">Coletas</span></div>';
+    const body = rows.map((row, i) => {
+      const city = row.city ? `<span class="ct">${esc(row.city)}</span>` : '';
+      return `<div class="tr"><span class="rk">${i + 1}</span><span>${esc(row.name)}${city}</span><span class="r w">${pf(row.avg_min)} min</span><span class="r">${nf(row.pickups)}</span></div>`;
+    }).join('');
+    return head + body;
+  }
+
+  function cityTable(rows, base) {
+    if (rows == null) return `<div class="empty">${OFF}</div>`;
+    if (!rows.length) return '<div class="empty">Ainda não há ativos com cidade neste período.</div>';
+    const head = '<div class="tr th cy"><span>#</span><span>Cidade</span><span>UF</span><span class="r">Ativos</span><span class="r">% da base</span></div>';
+    const body = rows.map((row, i) => {
+      const share = base > 0 ? Number(row.active) / base * 100 : 0;
+      return `<div class="tr cy"><span class="rk">${i + 1}</span><span>${esc(row.name)}</span><span>${esc(row.uf)}</span><span class="r">${nf(row.active)}</span><span class="r">${pp(share)}%</span></div>`;
+    }).join('');
+    const slice = rows.reduce((sum, row) => sum + Number(row.active || 0), 0);
+    const foot = base > 0 ? pp(slice / base * 100) : pp(0);
+    const label = rows.length === 5 ? 'As cinco' : 'Soma';
+    return head + body + `<div class="tr cy"><span></span><span>${label}</span><span></span><span class="r">${nf(slice)}</span><span class="r">${foot}%</span></div>`;
   }
 
   function ops() {
     const p = model.periods[st.period] || model.periods.hoje;
-    const li = (lb, sub) => `<div class="li"><div><span class="lb">${lb}</span><p>${sub}</p></div><span class="big nc">${OFF}</span></div>`;
+    const cover = (lb, current, previous) => {
+      const sub = current == null || previous == null ? OFF : deltaLine(current - previous);
+      return `<div class="li"><div><span class="lb">${lb}</span><p>${sub}</p></div>${big(current, current == null ? '' : nf(current))}</div>`;
+    };
     return `<section class="sec" data-screen-label="Operação"><div class="sh"><h3>Operação</h3></div><div class="ls">
-${li('Lojas cadastradas', OFF)}
-${li('Cidades', OFF)}
-${li('Estados', OFF)}
-</div><div class="opsb"><div class="sb"><h4>Onde mais se espera</h4><p class="ss">Lojas com maior tempo médio de espera · ${p.lbl}</p><div class="empty">${OFF}</div></div>
-<div class="sb"><h4>Onde estão os usuários</h4><p class="ss">Cidades com mais usuários ativos · ${p.lbl}</p><div class="empty">${OFF}</div></div></div></section>`;
+${cover('Lojas cadastradas', p.storesNew, p.storesPrev)}
+${cover('Cidades', p.citiesNew, p.citiesPrev)}
+${cover('Estados', p.statesNew, p.statesPrev)}
+</div><div class="opsb"><div class="sb"><h4>Onde mais se espera</h4><p class="ss">Lojas com maior tempo médio de espera · ${p.lbl}</p>${storeTable(p.topStores)}</div>
+<div class="sb"><h4>Onde estão os usuários</h4><p class="ss">Cidades com mais usuários ativos · ${p.lbl}</p>${cityTable(p.topCities, p.active)}</div></div></section>`;
   }
 
   function cell(i, real, meta, fm, name, lower, revenue) {
@@ -504,6 +576,25 @@ ${li('Estados', OFF)}
     if (agoEl && model.receivedAt) agoEl.textContent = ago(model.receivedAt);
   }
 
+  function baseLine(p) {
+    if (!p || p.added == null) {
+      return `Base: ${p && p.active != null ? nf(p.active) + ' ativos' : OFF} · novos, retidos e perdidos ${OFF}`;
+    }
+    return `Base: ${nf(p.active)} ativos · ${nf(p.added)} novos · ${nf(p.retained)} retidos · ${nf(p.lost)} perdidos`;
+  }
+
+  function funnelLine(p) {
+    const fun = p && p.funnel;
+    if (!fun) return `Funil: ${OFF}`;
+    return `Funil: ${nf(fun.login)} logins · ${nf(fun.accessibility)} com acessibilidade · ${nf(fun.active)} viraram ativos`;
+  }
+
+  function opsLine(p) {
+    if (!p || p.storesNew == null) return `Operação: ${OFF}`;
+    const top = p.topStores && p.topStores[0] ? ` · maior espera: ${p.topStores[0].name}` : '';
+    return `Operação: ${nf(p.storesNew)} lojas novas · ${nf(p.citiesNew)} cidades novas · ${nf(p.statesNew)} estados novos${top}`;
+  }
+
   function summary() {
     const c = model.cycle;
     const u = model.users;
@@ -514,9 +605,9 @@ ${li('Estados', OFF)}
       w ? `Tempo de espera: ${mf(w.real)} min (meta até hoje ${mf(w.metaToday)} min)` : `Tempo de espera: ${OFF}`,
       model.revenue.hasEntries ? `Receita: ${money(model.revenue.real)}` : 'Receita: aguardando paywall',
       model.running ? `Rodando agora: ${nf(model.running.now)} nos últimos 15 min` : `Rodando agora: ${OFF}`,
-      `Base: ${model.periods[st.period] && model.periods[st.period].active != null ? nf(model.periods[st.period].active) + ' ativos' : OFF} · novos, retidos e perdidos ${OFF}`,
-      `Funil: ${OFF}`,
-      `Operação: ${OFF}`,
+      baseLine(model.periods[st.period] || model.periods.hoje),
+      funnelLine(model.periods[st.period] || model.periods.hoje),
+      opsLine(model.periods[st.period] || model.periods.hoje),
     ];
     return lines.join('\n');
   }

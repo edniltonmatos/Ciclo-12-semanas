@@ -41,6 +41,7 @@
   const TESP_SUPABASE_URL = 'https://qrlsyhffqrprbljhirkk.supabase.co';
   const TESP_SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFybHN5aGZmcXJwcmJsamhpcmtrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY5ODA3OTgsImV4cCI6MjA5MjU1Njc5OH0.kRbbuci-fnHKp6YOX0yUNvuiQ_yKKpdjU5PdBjX1OOo';
   const LIVE_METRICS_RPC = 'get_okr_live_metrics';
+  const PERIOD_RPC = 'get_okr_period_detail';
 
   const CYCLE_N = 4;
   const CYCLE_DAYS = 84;
@@ -71,6 +72,8 @@
   let LIVE15Y = null;
   let receivedAt = null;
   let CUSTOM = null;
+  const DETAIL = { hoje: null, ontem: null, semana: null, passada: null };
+  const detailInflight = new Map();
   let revenueEntries = loadRevenue();
 
   function loadRevenue() {
@@ -186,6 +189,93 @@
     return next || prev || null;
   }
 
+  function shiftBounds(bounds, ms) {
+    return {
+      inicio: new Date(bounds.inicio.getTime() - ms),
+      fim: new Date(bounds.fim.getTime() - ms),
+    };
+  }
+
+  function cohortWindows(now) {
+    const hoje = { inicio: new Date(now.getTime() - 7 * 86400000), fim: now };
+    const ontemFim = dateForDay(TODAY);
+    const ontem = { inicio: new Date(ontemFim.getTime() - 7 * 86400000), fim: ontemFim };
+    const semanaInicio = WEEK_NOW <= 0 ? WEEK0_START : dateForDay((WEEK_NOW - 1) * 7 + 1);
+    const semana = { inicio: semanaInicio, fim: now };
+    const pw = WEEK_NOW - 1;
+    let passada = null;
+    if (pw >= 0) {
+      const inicio = pw === 0 ? WEEK0_START : dateForDay((pw - 1) * 7 + 1);
+      const fim = pw === 0 ? CICLO_START : dateForDay(pw * 7 + 1);
+      passada = { cur: { inicio, fim }, prev: shiftBounds({ inicio, fim }, fim - inicio) };
+    }
+    return {
+      hoje: { cur: hoje, prev: ontem },
+      ontem: { cur: ontem, prev: shiftBounds(ontem, 7 * 86400000) },
+      semana: { cur: semana, prev: shiftBounds(semana, 7 * 86400000) },
+      passada,
+    };
+  }
+
+  async function periodDetail(cur, prev, fresh) {
+    const inicio = cur.inicio.toISOString();
+    const fim = cur.fim.toISOString();
+    const prevInicio = prev.inicio.toISOString();
+    const prevFim = prev.fim.toISOString();
+    const key = 'd|' + inicio + '|' + fim + '|' + prevInicio + '|' + prevFim;
+    if (!fresh && cache[key]) return cache[key];
+    if (detailInflight.has(key)) return detailInflight.get(key);
+    const run = (async () => {
+      try {
+        const r = await fetch(TESP_SUPABASE_URL + '/rest/v1/rpc/' + PERIOD_RPC, {
+          method: 'POST',
+          headers: tespHeaders,
+          body: JSON.stringify({
+            p_inicio: inicio,
+            p_fim: fim,
+            p_prev_inicio: prevInicio,
+            p_prev_fim: prevFim,
+          }),
+        });
+        if (!r.ok) return null;
+        const data = await r.json();
+        if (!data || data.active == null || !data.funnel) return null;
+        if (!fresh) { cache[key] = data; saveCache(); }
+        return data;
+      } catch (_) {
+        return null;
+      }
+    })();
+    const tracked = run.finally(() => detailInflight.delete(key));
+    detailInflight.set(key, tracked);
+    return tracked;
+  }
+
+  function packPeriod(detail, fallbackActive, fallbackPrev, copy) {
+    const ready = detail && detail.active != null && detail.funnel;
+    const funnel = ready ? {
+      login: Number(detail.funnel.login),
+      accessibility: Number(detail.funnel.accessibility),
+      active: Number(detail.funnel.active),
+    } : null;
+    return Object.assign({
+      active: ready ? Number(detail.active) : fallbackActive,
+      prev: ready ? Number(detail.previous) : fallbackPrev,
+      retained: ready ? Number(detail.retained) : null,
+      added: ready ? Number(detail.new) : null,
+      lost: ready ? Number(detail.lost) : null,
+      storesNew: ready ? Number(detail.stores_new) : null,
+      storesPrev: ready ? Number(detail.stores_new_prev) : null,
+      citiesNew: ready ? Number(detail.cities_new) : null,
+      citiesPrev: ready ? Number(detail.cities_new_prev) : null,
+      statesNew: ready ? Number(detail.states_new) : null,
+      statesPrev: ready ? Number(detail.states_new_prev) : null,
+      funnel,
+      topStores: ready && Array.isArray(detail.top_stores) ? detail.top_stores : null,
+      topCities: ready && Array.isArray(detail.top_cities) ? detail.top_cities : null,
+    }, copy);
+  }
+
   async function pool(jobs, size) {
     if (!jobs.length) return;
     let cursor = 0;
@@ -199,9 +289,11 @@
   }
 
   async function refresh() {
+    const now = new Date();
+    const windows = cohortWindows(now);
     const jobs = [];
     jobs.push(async () => {
-      const next = await metrics(liveBounds(), true);
+      const next = await metrics(windows.hoje.cur, true);
       LIVE = keep(LIVE, next);
       if (next) receivedAt = Date.now();
     });
@@ -218,15 +310,21 @@
       });
     }
     jobs.push(async () => {
-      const bounds = weekBounds(WEEK_NOW, true);
-      CAL = keep(CAL, await metrics(bounds, true));
-      const prev = {
-        inicio: new Date(bounds.inicio.getTime() - 7 * 86400000),
-        fim: new Date(bounds.fim.getTime() - 7 * 86400000),
-      };
-      CAL_PREV = keep(CAL_PREV, await metrics(prev, true));
+      CAL = keep(CAL, await metrics(windows.semana.cur, true));
+      CAL_PREV = keep(CAL_PREV, await metrics(windows.semana.prev, true));
     });
-    const now = new Date();
+    ['hoje', 'ontem', 'semana'].forEach(key => {
+      const fresh = key !== 'ontem';
+      const pair = windows[key];
+      jobs.push(async () => {
+        DETAIL[key] = keep(DETAIL[key], await periodDetail(pair.cur, pair.prev, fresh));
+      });
+    });
+    if (windows.passada) {
+      jobs.push(async () => {
+        DETAIL.passada = keep(DETAIL.passada, await periodDetail(windows.passada.cur, windows.passada.prev, false));
+      });
+    }
     const yesterday = new Date(now.getTime() - 86400000);
     jobs.push(async () => {
       LIVE15 = keep(LIVE15, await metrics({ inicio: new Date(now.getTime() - 15 * 60 * 1000), fim: now }, true));
@@ -296,13 +394,12 @@
         revTarget: REV[i],
       });
     }
-    const base = (active, prev, copy) => Object.assign({ active, prev }, copy);
     const periods = {
-      hoje: base(usersReal, m1(yday), { cmp: 'comparado com ontem', lbl: 'hoje', vs: 'ontem' }),
-      ontem: base(m1(yday), m1(DAY[TODAY - 8]), { cmp: 'comparado com os 7 dias anteriores', lbl: 'ontem', vs: 'os 7 dias anteriores' }),
-      semana: base(m1(CAL), m1(CAL_PREV), { cmp: 'comparado com os mesmos dias da semana passada', lbl: 'esta semana', vs: 'os mesmos dias da semana passada' }),
-      passada: base(m1(WEEK[WEEK_NOW - 1]), m1(WEEK[WEEK_NOW - 2]), { cmp: 'comparado com a semana anterior', lbl: 'semana passada', vs: 'a semana anterior' }),
-      custom: CUSTOM || { cmp: 'comparado com o período anterior', lbl: 'o período escolhido', vs: 'o período anterior', active: null, prev: null },
+      hoje: packPeriod(DETAIL.hoje, usersReal, m1(yday), { cmp: 'comparado com ontem', lbl: 'hoje', vs: 'ontem' }),
+      ontem: packPeriod(DETAIL.ontem, m1(yday), m1(DAY[TODAY - 8]), { cmp: 'comparado com os 7 dias anteriores', lbl: 'ontem', vs: 'os 7 dias anteriores' }),
+      semana: packPeriod(DETAIL.semana, m1(CAL), m1(CAL_PREV), { cmp: 'comparado com os mesmos dias da semana passada', lbl: 'esta semana', vs: 'os mesmos dias da semana passada' }),
+      passada: packPeriod(DETAIL.passada, m1(WEEK[WEEK_NOW - 1]), m1(WEEK[WEEK_NOW - 2]), { cmp: 'comparado com a semana anterior', lbl: 'semana passada', vs: 'a semana anterior' }),
+      custom: CUSTOM || packPeriod(null, null, null, { cmp: 'comparado com o período anterior', lbl: 'o período escolhido', vs: 'o período anterior' }),
     };
     const days = [];
     const lastDay = Math.max(WEEK_END, TODAY) + 3;
@@ -360,19 +457,20 @@
     const fim = new Date(end.getTime() + 86400000);
     const prevFim = start;
     const prevInicio = new Date(start.getTime() - (fim - start));
-    const [cur, prev] = await Promise.all([
-      metrics({ inicio: start, fim }, true),
-      metrics({ inicio: prevInicio, fim: prevFim }, true),
+    const curBounds = { inicio: start, fim };
+    const prevBounds = { inicio: prevInicio, fim: prevFim };
+    const [cur, prev, detail] = await Promise.all([
+      metrics(curBounds, true),
+      metrics(prevBounds, true),
+      periodDetail(curBounds, prevBounds, true),
     ]);
-    CUSTOM = {
+    CUSTOM = packPeriod(detail, m1(cur), m1(prev), {
       cmp: 'comparado com o período anterior',
       lbl: fmtShort(start) + '–' + fmtShort(end),
       vs: 'o período anterior',
-      active: m1(cur),
-      prev: m1(prev),
       start: isoStamp(start),
       end: isoStamp(end),
-    };
+    });
     return CUSTOM;
   }
 
