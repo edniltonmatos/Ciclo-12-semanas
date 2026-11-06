@@ -9,7 +9,14 @@ Ao vivo, pela função `get_okr_live_metrics` no projeto TESP:
 - Usuários ativos (WAU) e tempo médio de espera no veredito, nas metas e no gráfico
 - Rodando agora: contribuidores nos últimos 15 minutos
 
-Pela função `get_okr_period_detail`, no período escolhido (hoje, ontem, esta semana, semana passada ou datas). "Esta semana" compara com os mesmos dias da semana anterior. O SQL está em [supabase/tesp/get_okr_period_detail.sql](supabase/tesp/get_okr_period_detail.sql) e precisa rodar no SQL Editor do TESP:
+Pela função `get_okr_period_detail`, no período escolhido. O veredito continua nos últimos 7 dias. Os recortes da base são outros:
+
+- Hoje: da meia-noite até agora, comparado com o dia de ontem inteiro
+- Ontem: o dia de ontem inteiro, comparado com o dia anterior
+- Esta semana: do início da semana até agora, comparado com os mesmos dias da semana anterior
+- Semana passada: a semana fechada, comparada com a semana anterior
+
+O SQL está em [supabase/tesp/get_okr_period_detail.sql](supabase/tesp/get_okr_period_detail.sql) e precisa rodar no SQL Editor do TESP:
 
 - Base: ativos, novos, retidos e perdidos. A conta fecha: anterior − perdidos + novos = ativos
 - Funil de quem criou a conta no período, em `delivery_profiles`: login, acessibilidade ligada agora e primeira coleta

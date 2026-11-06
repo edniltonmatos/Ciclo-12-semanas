@@ -68,6 +68,9 @@
   let LIVE = null;
   let CAL = null;
   let CAL_PREV = null;
+  let HOJE = null;
+  let ONTEM = null;
+  let ANTEONTEM = null;
   let LIVE15 = null;
   let LIVE15Y = null;
   let receivedAt = null;
@@ -197,9 +200,9 @@
   }
 
   function cohortWindows(now) {
-    const hoje = { inicio: new Date(now.getTime() - 7 * 86400000), fim: now };
-    const ontemFim = dateForDay(TODAY);
-    const ontem = { inicio: new Date(ontemFim.getTime() - 7 * 86400000), fim: ontemFim };
+    const meiaNoiteHoje = dateForDay(TODAY);
+    const hoje = { inicio: meiaNoiteHoje, fim: now };
+    const ontem = { inicio: new Date(meiaNoiteHoje.getTime() - 86400000), fim: meiaNoiteHoje };
     const semanaInicio = WEEK_NOW <= 0 ? WEEK0_START : dateForDay((WEEK_NOW - 1) * 7 + 1);
     const semana = { inicio: semanaInicio, fim: now };
     const pw = WEEK_NOW - 1;
@@ -211,7 +214,7 @@
     }
     return {
       hoje: { cur: hoje, prev: ontem },
-      ontem: { cur: ontem, prev: shiftBounds(ontem, 7 * 86400000) },
+      ontem: { cur: ontem, prev: shiftBounds(ontem, 86400000) },
       semana: { cur: semana, prev: shiftBounds(semana, 7 * 86400000) },
       passada,
     };
@@ -293,10 +296,13 @@
     const windows = cohortWindows(now);
     const jobs = [];
     jobs.push(async () => {
-      const next = await metrics(windows.hoje.cur, true);
+      const next = await metrics(liveBounds(), true);
       LIVE = keep(LIVE, next);
       if (next) receivedAt = Date.now();
     });
+    jobs.push(async () => { HOJE = keep(HOJE, await metrics(windows.hoje.cur, true)); });
+    jobs.push(async () => { ONTEM = keep(ONTEM, await metrics(windows.ontem.cur, false)); });
+    jobs.push(async () => { ANTEONTEM = keep(ANTEONTEM, await metrics(windows.ontem.prev, false)); });
     for (let d = TODAY - 13; d < TODAY; d++) {
       jobs.push(async () => {
         const day = d;
@@ -395,8 +401,8 @@
       });
     }
     const periods = {
-      hoje: packPeriod(DETAIL.hoje, usersReal, m1(yday), { cmp: 'comparado com ontem', lbl: 'hoje', vs: 'ontem' }),
-      ontem: packPeriod(DETAIL.ontem, m1(yday), m1(DAY[TODAY - 8]), { cmp: 'comparado com os 7 dias anteriores', lbl: 'ontem', vs: 'os 7 dias anteriores' }),
+      hoje: packPeriod(DETAIL.hoje, m1(HOJE), m1(ONTEM), { cmp: 'comparado com ontem', lbl: 'hoje', vs: 'ontem' }),
+      ontem: packPeriod(DETAIL.ontem, m1(ONTEM), m1(ANTEONTEM), { cmp: 'comparado com o dia anterior', lbl: 'ontem', vs: 'o dia anterior' }),
       semana: packPeriod(DETAIL.semana, m1(CAL), m1(CAL_PREV), { cmp: 'comparado com os mesmos dias da semana passada', lbl: 'esta semana', vs: 'os mesmos dias da semana passada' }),
       passada: packPeriod(DETAIL.passada, m1(WEEK[WEEK_NOW - 1]), m1(WEEK[WEEK_NOW - 2]), { cmp: 'comparado com a semana anterior', lbl: 'semana passada', vs: 'a semana anterior' }),
       custom: CUSTOM || packPeriod(null, null, null, { cmp: 'comparado com o período anterior', lbl: 'o período escolhido', vs: 'o período anterior' }),
