@@ -1,6 +1,83 @@
 -- TESP | Tempo de espera SP
--- Detalhe de um período do painel: coorte, funil, cobertura e rankings.
--- Lê wait_contributions e delivery_profiles. Não cria tabela.
+-- Detalhe de um período: coorte, funil, cobertura e rankings.
+--
+-- A primeira versão lia wait_contributions inteira várias vezes. A API cancela
+-- em cerca de 3 segundos (statement timeout) e o painel mostrava "sem conexão".
+-- Aqui a primeira coleta de cada lugar fica numa tabela pequena, atualizada
+-- por trigger. A função da API só olha a janela do período.
+--
+-- Rode este arquivo inteiro no SQL Editor do TESP. Pode rodar de novo.
+
+SET statement_timeout = '300s';
+
+CREATE TABLE IF NOT EXISTS public.okr_place_first (
+  name_key text NOT NULL DEFAULT '',
+  city_key text NOT NULL DEFAULT '',
+  uf_key text NOT NULL DEFAULT '',
+  first_at timestamptz NOT NULL,
+  PRIMARY KEY (name_key, city_key, uf_key)
+);
+
+CREATE INDEX IF NOT EXISTS okr_place_first_at_idx
+  ON public.okr_place_first (first_at);
+
+ALTER TABLE public.okr_place_first ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON TABLE public.okr_place_first FROM PUBLIC, anon, authenticated;
+
+CREATE INDEX IF NOT EXISTS wait_contributions_created_at_idx
+  ON public.wait_contributions (created_at);
+
+CREATE INDEX IF NOT EXISTS wait_contributions_user_created_idx
+  ON public.wait_contributions ((contributor_user_id::text), created_at);
+
+CREATE INDEX IF NOT EXISTS wait_contributions_email_only_created_idx
+  ON public.wait_contributions (lower(btrim(contributor_email)), created_at)
+  WHERE contributor_user_id IS NULL AND contributor_email IS NOT NULL;
+
+CREATE INDEX IF NOT EXISTS delivery_profiles_created_at_idx
+  ON public.delivery_profiles (created_at);
+
+CREATE OR REPLACE FUNCTION public.okr_place_first_apply()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_name text := coalesce(nullif(lower(btrim(NEW.store_name)), ''), '');
+  v_city text := coalesce(nullif(lower(btrim(NEW.store_city)), ''), '');
+  v_uf text := coalesce(nullif(lower(btrim(NEW.store_uf)), ''), '');
+BEGIN
+  IF v_name = '' AND v_city = '' AND v_uf = '' THEN
+    RETURN NEW;
+  END IF;
+  INSERT INTO public.okr_place_first (name_key, city_key, uf_key, first_at)
+  VALUES (v_name, v_city, v_uf, NEW.created_at)
+  ON CONFLICT (name_key, city_key, uf_key)
+  DO UPDATE SET first_at = LEAST(public.okr_place_first.first_at, EXCLUDED.first_at);
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS okr_place_first_bi ON public.wait_contributions;
+CREATE TRIGGER okr_place_first_bi
+  BEFORE INSERT ON public.wait_contributions
+  FOR EACH ROW
+  EXECUTE FUNCTION public.okr_place_first_apply();
+
+INSERT INTO public.okr_place_first (name_key, city_key, uf_key, first_at)
+SELECT
+  coalesce(nullif(lower(btrim(store_name)), ''), ''),
+  coalesce(nullif(lower(btrim(store_city)), ''), ''),
+  coalesce(nullif(lower(btrim(store_uf)), ''), ''),
+  min(created_at)
+FROM public.wait_contributions
+WHERE nullif(btrim(store_name), '') IS NOT NULL
+   OR nullif(btrim(store_city), '') IS NOT NULL
+   OR nullif(btrim(store_uf), '') IS NOT NULL
+GROUP BY 1, 2, 3
+ON CONFLICT (name_key, city_key, uf_key)
+DO UPDATE SET first_at = LEAST(public.okr_place_first.first_at, EXCLUDED.first_at);
 
 CREATE OR REPLACE FUNCTION public.get_okr_period_detail(
   p_inicio timestamptz,
@@ -13,6 +90,7 @@ LANGUAGE plpgsql
 STABLE
 SECURITY DEFINER
 SET search_path = public
+SET statement_timeout = '8s'
 AS $$
 DECLARE
   v_active integer := 0;
@@ -52,43 +130,59 @@ BEGIN
   INTO v_active, v_previous, v_retained, v_new, v_lost
   FROM people;
 
-  WITH first_store AS (
-    SELECT min(created_at) AS first_at
-    FROM public.wait_contributions
-    WHERE nullif(btrim(store_name), '') IS NOT NULL
-    GROUP BY lower(btrim(store_name)),
-             lower(coalesce(btrim(store_city), '')),
-             lower(coalesce(btrim(store_uf), ''))
-  )
-  SELECT
-    count(*) FILTER (WHERE first_at >= p_inicio AND first_at < p_fim),
-    count(*) FILTER (WHERE first_at >= p_prev_inicio AND first_at < p_prev_fim)
-  INTO v_stores_new, v_stores_prev
-  FROM first_store;
+  SELECT count(*)
+  INTO v_stores_new
+  FROM public.okr_place_first
+  WHERE name_key <> ''
+    AND first_at >= p_inicio
+    AND first_at < p_fim;
 
-  WITH first_city AS (
-    SELECT min(created_at) AS first_at
-    FROM public.wait_contributions
-    WHERE nullif(btrim(store_city), '') IS NOT NULL
-    GROUP BY lower(btrim(store_city)), lower(coalesce(btrim(store_uf), ''))
-  )
-  SELECT
-    count(*) FILTER (WHERE first_at >= p_inicio AND first_at < p_fim),
-    count(*) FILTER (WHERE first_at >= p_prev_inicio AND first_at < p_prev_fim)
-  INTO v_cities_new, v_cities_prev
-  FROM first_city;
+  SELECT count(*)
+  INTO v_stores_prev
+  FROM public.okr_place_first
+  WHERE name_key <> ''
+    AND first_at >= p_prev_inicio
+    AND first_at < p_prev_fim;
 
-  WITH first_state AS (
-    SELECT min(created_at) AS first_at
-    FROM public.wait_contributions
-    WHERE nullif(btrim(store_uf), '') IS NOT NULL
-    GROUP BY lower(btrim(store_uf))
-  )
-  SELECT
-    count(*) FILTER (WHERE first_at >= p_inicio AND first_at < p_fim),
-    count(*) FILTER (WHERE first_at >= p_prev_inicio AND first_at < p_prev_fim)
-  INTO v_states_new, v_states_prev
-  FROM first_state;
+  SELECT count(*)
+  INTO v_cities_new
+  FROM (
+    SELECT city_key, uf_key
+    FROM public.okr_place_first
+    WHERE city_key <> ''
+    GROUP BY city_key, uf_key
+    HAVING min(first_at) >= p_inicio AND min(first_at) < p_fim
+  ) cities;
+
+  SELECT count(*)
+  INTO v_cities_prev
+  FROM (
+    SELECT city_key, uf_key
+    FROM public.okr_place_first
+    WHERE city_key <> ''
+    GROUP BY city_key, uf_key
+    HAVING min(first_at) >= p_prev_inicio AND min(first_at) < p_prev_fim
+  ) cities;
+
+  SELECT count(*)
+  INTO v_states_new
+  FROM (
+    SELECT uf_key
+    FROM public.okr_place_first
+    WHERE uf_key <> ''
+    GROUP BY uf_key
+    HAVING min(first_at) >= p_inicio AND min(first_at) < p_fim
+  ) states;
+
+  SELECT count(*)
+  INTO v_states_prev
+  FROM (
+    SELECT uf_key
+    FROM public.okr_place_first
+    WHERE uf_key <> ''
+    GROUP BY uf_key
+    HAVING min(first_at) >= p_prev_inicio AND min(first_at) < p_prev_fim
+  ) states;
 
   WITH logins AS (
     SELECT DISTINCT ON (user_id)
@@ -101,28 +195,29 @@ BEGIN
       AND user_id IS NOT NULL
     ORDER BY user_id, created_at DESC
   ),
-  first_by_user AS (
-    SELECT contributor_user_id::text AS user_id, min(created_at) AS first_at
-    FROM public.wait_contributions
-    WHERE contributor_user_id IS NOT NULL
-    GROUP BY 1
-  ),
-  first_by_email AS (
-    SELECT lower(btrim(contributor_email)) AS email, min(created_at) AS first_at
-    FROM public.wait_contributions
-    WHERE contributor_user_id IS NULL
-      AND nullif(btrim(contributor_email), '') IS NOT NULL
-    GROUP BY 1
-  ),
   matched AS (
     SELECT
       l.a11y,
       (
-        SELECT min(src.first_at)
+        SELECT min(src.at)
         FROM (
-          SELECT f.first_at FROM first_by_user f WHERE f.user_id = l.user_id
+          SELECT (
+            SELECT w.created_at
+            FROM public.wait_contributions w
+            WHERE w.contributor_user_id::text = l.user_id
+            ORDER BY w.created_at
+            LIMIT 1
+          ) AS at
           UNION ALL
-          SELECT f.first_at FROM first_by_email f WHERE l.email IS NOT NULL AND f.email = l.email
+          SELECT (
+            SELECT w.created_at
+            FROM public.wait_contributions w
+            WHERE l.email IS NOT NULL
+              AND w.contributor_user_id IS NULL
+              AND lower(btrim(w.contributor_email)) = l.email
+            ORDER BY w.created_at
+            LIMIT 1
+          )
         ) src
       ) AS first_at
     FROM logins l
@@ -221,5 +316,6 @@ BEGIN
 END;
 $$;
 
+REVOKE ALL ON FUNCTION public.okr_place_first_apply() FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.get_okr_period_detail(timestamptz, timestamptz, timestamptz, timestamptz) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.get_okr_period_detail(timestamptz, timestamptz, timestamptz, timestamptz) TO anon, authenticated;
